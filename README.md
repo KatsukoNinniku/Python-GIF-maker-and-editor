@@ -9,7 +9,7 @@
 2. Image Sequence GIFs do not work properly, please use only the Video GIF creation for now
 3. The script has not been tested on Windows yet, only on linux, therefore issues on Windows might arise
 
-# HOw TO SETUP
+# HOW TO SETUP
 1. Download all of the PIP dependencies listed in requirements.txt until an .exe file is available
 2. Upon launching the script, it will create a config file in the same directory
 3. Navigate into settings, then input all of the file paths (GIFSicle is not implemented yet so any path can be put there)
