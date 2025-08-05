@@ -5,6 +5,7 @@ import customtkinter
 import os
 import cv2
 import glob
+import platform
 
 tempval = 1
 
@@ -12,10 +13,22 @@ tempval = 1
 
 #Creating Config
 
-if os.path.isfile("GIF_Maker_and_Editor_config.ini"):
+system = platform.system()
+
+if system == "Linux":
+    pathtoconfig = os.path.join("/home",os.getlogin(),"Documents","GIFMakerEditorConfig")
+    if os.path.exists(pathtoconfig):
+        print("Directory exists")
+    else:
+        os.makedirs(pathtoconfig, exist_ok=True)
+
+pathtoconfig = os.path.join(pathtoconfig,"GIF_Maker_and_Editor_config.ini")
+
+
+if os.path.isfile(pathtoconfig):
     print("File exists!")
     Ustawienia = ConfigParser()
-    Ustawienia.read('GIF_Maker_and_Editor_config.ini')
+    Ustawienia.read(pathtoconfig)
 
 else:
     print("File does not exist.")
@@ -30,7 +43,7 @@ else:
         "Temporary_Video_Directory": "Enter or create with root",
     }
 
-    with open("GIF_Maker_and_Editor_config.ini","w") as f:
+    with open(pathtoconfig,"w") as f:
         Ustawienia.write(f)
 
 #Functions to be defined
@@ -50,7 +63,7 @@ def createfolder(parent_dir,new_folder_name):
 
 def ChangeConfigValue(path_to_change,dir_to_change):
     Ustawienia.set("Default",path_to_change,dir_to_change)
-    with open("GIF_Maker_and_Editor_config.ini", "w") as f:
+    with open(pathtoconfig, "w") as f:
         Ustawienia.write(f)
 
     #Checking if path is valid
@@ -952,11 +965,22 @@ class MainMenu(customtkinter.CTk):
                     elif self.iserrorcheck() == 2 or self.customloopcheck == 2:
                         self.errormsgcrt("Please input values into fields")
 
-                def make_isgif(self,frame_folder,image_file_path,image_sequence_ext,delay_frame,loops):
-                    frames = [Image.open(image) for image in glob.glob(f"{frame_folder}/*{image_sequence_ext}")]
+                def make_isgif(self, frame_folder, image_file_path, image_sequence_ext, delay_frame, loops):
+                    frames = [Image.open(image).convert("RGBA") for image in glob.glob(f"{frame_folder}/*{image_sequence_ext}")]
+                    if not frames:
+                        raise ValueError("No frames found.")
+                    # Ensure all frames are the same size
+                    size = frames[0].size
+                    frames = [frame.resize(size) for frame in frames]
                     frame_one = frames[0]
-                    frame_one.save(fp = image_file_path, format="GIF", append_images=frames,
-                            save_all=True, duration=delay_frame, loop=int(loops))
+                    frame_one.save(
+                        fp=image_file_path,
+                        format="GIF",
+                        append_images=frames[1:],  # Only append the rest
+                        save_all=True,
+                        duration=delay_frame,
+                        loop=int(loops)
+                    )
 
                 def iserrorcheck(self):
                     if self.entry_isext.get() == "" or self.entry_isms.get() == "":
