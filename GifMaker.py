@@ -966,7 +966,12 @@ class MainMenu(customtkinter.CTk):
                         self.errormsgcrt("Please input values into fields")
 
                 def make_isgif(self, frame_folder, image_file_path, image_sequence_ext, delay_frame, loops):
-                    frames = [Image.open(image).convert("RGBA") for image in glob.glob(f"{frame_folder}/*{image_sequence_ext}")]
+                    # Sort files numerically if filenames are numbers, otherwise alphabetically
+                    image_files = sorted(
+                        glob.glob(f"{frame_folder}/*{image_sequence_ext}"),
+                        key=lambda x: int(os.path.splitext(os.path.basename(x))[0]) if os.path.splitext(os.path.basename(x))[0].isdigit() else x
+                    )
+                    frames = [Image.open(image).convert("RGBA") for image in image_files]
                     if not frames:
                         raise ValueError("No frames found.")
                     # Ensure all frames are the same size
