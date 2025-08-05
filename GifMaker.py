@@ -339,7 +339,7 @@ class MainMenu(customtkinter.CTk):
                             createfolder(readconfigpath("root_path"),"Videos")
                             self.dir2_path = os.path.join(readconfigpath("root_path"), "Videos")
                             self.dir2_status = True
-                            ChangeConfigValue("videos_directory",self.dir1_path)
+                            ChangeConfigValue("videos_directory",self.dir2_path)
 
                             self.entry_viddir.destroy()
                             self.entry_viddir = customtkinter.CTkEntry(self,placeholder_text=self.dir2_path,width = 175, height = 50)
@@ -353,7 +353,7 @@ class MainMenu(customtkinter.CTk):
                         createfolder(self.entry_root.get(),"Videos")
                         self.dir2_path = os.path.join(self.entry_root.get(), "Videos")
                         self.dir2_status = True
-                        ChangeConfigValue("videos_directory",self.dir1_path)
+                        ChangeConfigValue("videos_directory",self.dir2_path)
 
                         self.entry_viddir.destroy()
                         self.entry_viddir = customtkinter.CTkEntry(self,placeholder_text=self.dir2_path,width = 175, height = 50)
@@ -370,7 +370,7 @@ class MainMenu(customtkinter.CTk):
                             createfolder(readconfigpath("root_path"),"GIFStoEdit")
                             self.dir3_path = os.path.join(readconfigpath("root_path"), "GIFStoEdit")
                             self.dir3_status = True
-                            ChangeConfigValue("gif_edit_directory",self.dir1_path)
+                            ChangeConfigValue("gif_edit_directory",self.dir3_path)
 
                             self.entry_gifedit.destroy()
                             self.entry_gifedit = customtkinter.CTkEntry(self,placeholder_text=self.dir3_path,width = 150, height = 50)
@@ -384,7 +384,7 @@ class MainMenu(customtkinter.CTk):
                         createfolder(self.entry_root.get(),"GIFStoEdit")
                         self.dir3_path = os.path.join(self.entry_root.get(), "GIFStoEdit")
                         self.dir3_status = True
-                        ChangeConfigValue("gif_edit_directory",self.dir1_path)
+                        ChangeConfigValue("gif_edit_directory",self.dir3_path)
 
                         self.entry_gifedit.destroy()
                         self.entry_gifedit = customtkinter.CTkEntry(self,placeholder_text=self.dir3_path,width = 150, height = 50)
@@ -401,7 +401,7 @@ class MainMenu(customtkinter.CTk):
                             createfolder(readconfigpath("root_path"),"TemporaryVideoDir")
                             self.dir4_path = os.path.join(readconfigpath("root_path"), "TemporaryVideoDir")
                             self.dir4_status = True
-                            ChangeConfigValue("temporary_video_directory",self.dir1_path)
+                            ChangeConfigValue("temporary_video_directory",self.dir4_path)
 
                             self.entry_tempvid.destroy()
                             self.entry_tempvid = customtkinter.CTkEntry(self,placeholder_text=self.dir4_path,width = 150, height = 50)
@@ -415,7 +415,7 @@ class MainMenu(customtkinter.CTk):
                         createfolder(self.entry_root.get(),"TemporaryVideoDir")
                         self.dir4_path = os.path.join(self.entry_root.get(), "TemporaryVideoDir")
                         self.dir4_status = True
-                        ChangeConfigValue("temporary_video_directory",self.dir1_path)
+                        ChangeConfigValue("temporary_video_directory",self.dir4_path)
 
                         self.entry_tempvid.destroy()
                         self.entry_tempvid = customtkinter.CTkEntry(self,placeholder_text=self.dir4_path,width = 150, height = 50)
@@ -827,7 +827,7 @@ class MainMenu(customtkinter.CTk):
                     self.button_exitis = customtkinter.CTkButton(self,width = 100, height = 50, text="Exit", command=self.exitcrt)
                     self.button_layout1 = customtkinter.CTkButton(self,width = 100, height = 50, text="Change Mode", command=self.switchtolay1)
                     self.button_isloopinf = customtkinter.CTkButton(self,width = 100, height = 25, text="∞", command=self.infiniteloops)
-                    self.button_isloopamnt = customtkinter.CTkButton(self,width = 100, height = 25, text="Custom",state= "disabled", command=self.customloops)
+                    self.button_isloopamnt = customtkinter.CTkButton(self,width = 100, height = 25, text="Custom", command=self.customloops)
 
                     self.label_isext.place(x=35,y=25)
                     self.label_isms.place(x=175,y=25)
@@ -904,13 +904,13 @@ class MainMenu(customtkinter.CTk):
                 def goback(self):
                     if self.customloopsstate == False:
                         self.button_isloopinf.configure(state="normal")
-                        # self.button_isloopamnt.configure(state="normal")
+                        self.button_isloopamnt.configure(state="normal")
                         self.button_isgoback.destroy()
                         self.button_isconvert.destroy()
                         self.stopisgifplayback()
                     elif self.customloopsstate == True:
                         self.button_isloopinf.configure(state="normal")
-                        # self.button_isloopamnt.configure(state="normal")
+                        self.button_isloopamnt.configure(state="normal")
                         self.button_isgoback.destroy()
                         self.entry_isloopamount.destroy()                        
                         self.button_isconvert.destroy()
