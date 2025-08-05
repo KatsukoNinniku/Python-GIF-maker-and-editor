@@ -826,12 +826,16 @@ class MainMenu(customtkinter.CTk):
 
                     self.button_exitis = customtkinter.CTkButton(self,width = 100, height = 50, text="Exit", command=self.exitcrt)
                     self.button_layout1 = customtkinter.CTkButton(self,width = 100, height = 50, text="Change Mode", command=self.switchtolay1)
-                    self.button_isloopinf = customtkinter.CTkButton(self,width = 100, height = 25, text="∞", command=self.infiniteloops)
-                    self.button_isloopamnt = customtkinter.CTkButton(self,width = 100, height = 25, text="Custom", command=self.customloops)
+                    # self.button_isloopinf = customtkinter.CTkButton(self,width = 100, height = 25, text="∞", command=self.infiniteloops)
+                    # self.button_isloopamnt = customtkinter.CTkButton(self,width = 100, height = 25, text="Custom", command=self.customloops)
+                    
+                    self.button_isconvert = customtkinter.CTkButton(self,width = 100, height = 50, text="Convert", command=self.isconvertbutton)
+                    self.button_isconvert.place(x=100,y=250)    
+
 
                     self.label_isext.place(x=35,y=25)
                     self.label_isms.place(x=175,y=25)
-                    self.label_isloop.place(x=100,y=125)
+                    # self.label_isloop.place(x=100,y=125)
                     self.label_isloadedgif.place(x=375,y=25)
                     self.label_isgifsaved.place(x=425,y=375)
                     self.label_ismsframes.place(x=375,y=0)
