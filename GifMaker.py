@@ -7,11 +7,20 @@ import cv2
 import glob
 import platform
 
-tempval = 1
+tempval = False
 
-def selectdirectory():
-        directoryname = filedialog.askdirectory()
-        return(directoryname)
+def selectdirectory(parent=None):
+    # Pass parent to filedialog so it appears on top
+    directoryname = filedialog.askdirectory(parent=parent)
+    return directoryname
+
+def selectfile(parent=None):
+    filename = filedialog.askopenfilename(
+        filetypes=[("MP4 files", "*.mp4")],
+        parent=parent
+    )
+    return filename
+
 
 #Creating Config
 
@@ -90,6 +99,19 @@ def CheckAllConfigPaths():
             print(f"{key}: Valid path")
         else:
             invalid_paths += 1
+    if invalid_paths > 0:
+        return False
+    else:
+        return True
+    
+def CheckAllConfigPaths2(exclude_keys):
+    invalid_paths = 0
+    for key in Ustawienia["Default"]:
+        if key not in exclude_keys:
+            if ispathvalid(key):
+                print(f"{key}: Valid path")
+            else:
+                invalid_paths += 1
     if invalid_paths > 0:
         return False
     else:
@@ -229,44 +251,59 @@ class MainMenu(customtkinter.CTk):
                 self.geometry("600x400")
                 self.title("Settings")
 
-
+                self.invaliddirectories = []
 
                 self.label_root = customtkinter.CTkLabel(self, text="Root folder directory", fg_color="transparent")
-                self.entry_root = customtkinter.CTkEntry(self,placeholder_text=readconfigpath("root_path"),width = 250, height = 50)
+                self.entry_root = customtkinter.CTkEntry(self,placeholder_text=readconfigpath("root_path"),width = 175, height = 50)
                 
                 self.label_imageseq = customtkinter.CTkLabel(self, text="Image sequence folder directory", fg_color="transparent")
                 self.entry_imageseq = customtkinter.CTkEntry(self,placeholder_text=readconfigpath("image_sequence_path"),width = 175, height = 50)
-                self.button_create1 = customtkinter.CTkButton(self,width = 50, height = 20, text="Create", command=self.createdir1)
+                self.button_create1 = customtkinter.CTkButton(self,width = 75, height = 20, text="Create", command=self.createdir1)
                 self.dir1_status = False
 
                 self.label_gifedit = customtkinter.CTkLabel(self, text="Directory of GIFs to edit", fg_color="transparent")
                 self.entry_gifedit = customtkinter.CTkEntry(self,placeholder_text=readconfigpath("gif_edit_directory"),width = 175, height = 50)
-                self.button_create3 = customtkinter.CTkButton(self,width = 50, height = 20, text="Create", command=self.createdir3)
+                self.button_create3 = customtkinter.CTkButton(self,width = 75, height = 20, text="Create", command=self.createdir3)
                 self.dir3_status = False
 
                 self.label_gifsicle = customtkinter.CTkLabel(self, text="Gifsicle directory", fg_color="transparent")
-                self.entry_gifsicle = customtkinter.CTkEntry(self,placeholder_text=readconfigpath("gifsicle_path"),width = 250, height = 50)
+                self.entry_gifsicle = customtkinter.CTkEntry(self,placeholder_text=readconfigpath("gifsicle_path"),width = 175, height = 50)
                
                 self.label_viddir = customtkinter.CTkLabel(self, text="Videos directory", fg_color="transparent")
                 self.entry_viddir = customtkinter.CTkEntry(self,placeholder_text=readconfigpath("videos_directory"),width = 175, height = 50)
-                self.button_create2 = customtkinter.CTkButton(self,width = 50, height = 20, text="Create", command=self.createdir2)
+                self.button_create2 = customtkinter.CTkButton(self,width = 75, height = 20, text="Create", command=self.createdir2)
                 self.dir2_status = False   
 
                 self.label_tempvid = customtkinter.CTkLabel(self, text="Temporary video directory", fg_color="transparent")
                 self.entry_tempvid = customtkinter.CTkEntry(self,placeholder_text=readconfigpath("temporary_video_directory"),width = 175, height = 50)
-                self.button_create4 = customtkinter.CTkButton(self,width = 50, height = 20, text="Create", command=self.createdir4)
+                self.button_create4 = customtkinter.CTkButton(self,width = 75, height = 20, text="Create", command=self.createdir4)
                 
                 self.label_apply = customtkinter.CTkLabel(self, text="",fg_color="transparent",justify="center")
                 self.settings_apply_button = customtkinter.CTkButton(self,width = 100,height = 25, text = "Apply dirs",command=self.SubmitDirectoryChanges)
                 self.settings_exit_button = customtkinter.CTkButton(self,width = 100,height = 25, text = "Exit",command=self.exitsettings)                
                 
-                
-                self.button_create1.place(x=225,y=180)
-                self.button_create2.place(x=525,y=180)
-                self.button_create3.place(x=225,y=280)
-                self.button_create4.place(x=525,y=280)
+                self.button_select1 = customtkinter.CTkButton(self,width = 75, height = 20, text="Select", command=self.selectdir1)
+                self.button_select2 = customtkinter.CTkButton(self,width = 75, height = 20, text="Select", command=self.selectdir2)
+                self.button_select3 = customtkinter.CTkButton(self,width = 75, height = 20, text="Select", command=self.selectdir3)
+                self.button_select4 = customtkinter.CTkButton(self,width = 75, height = 20, text="Select", command=self.selectdir4)
+                self.button_selecthome = customtkinter.CTkButton(self,width = 75, height = 30, text="Select", command=self.selectrootdir)
+                self.button_selectgifsicle = customtkinter.CTkButton(self,width = 75, height = 30, text="Select", command=self.selectgifsicle)
+
+
 
                 
+                self.button_create1.place(x=210,y=178)
+                self.button_create2.place(x=510,y=178)
+                self.button_create3.place(x=210,y=278)
+                self.button_create4.place(x=510,y=278)
+
+                self.button_select1.place(x=210,y=150)
+                self.button_select2.place(x=510,y=150)
+                self.button_select3.place(x=210,y=250)
+                self.button_select4.place(x=510,y=250)
+                self.button_selecthome.place(x=210,y=60)
+                self.button_selectgifsicle.place(x=510,y=60)
+
                 self.label_root.place(x=25,y=25)        
                 self.entry_root.place(x=25,y=50)
                 
@@ -295,18 +332,81 @@ class MainMenu(customtkinter.CTk):
               
 
             def SubmitDirectoryChanges(self):
-                self.aredirectioriesvalid()
-                if len(self.invaliddirectories) == 0:
-                    self.label_apply.configure(text="Changes Applied")
+                # self.aredirectioriesvalid()
+                self.label_apply.configure(text="Changes Applied")
+
+
+                if self.entry_root.get() == "":
+                    if ispathvalid("root_path"):
+                        print("root_path is valid")
+                    # else:
+                    #     self.invaliddirectories.append("Root")    
                 else:
-                    if len(self.invaliddirectories) ==1:
-                        self.errormsg(f"{"".join(self.invaliddirectories)} directory path is invalid")
-                    elif len(self.invaliddirectories) >3:
-                        self.invaliddirectoriesline1 = self.invaliddirectories[:3]
-                        self.invaliddirectoriesline2 = self.invaliddirectoriesline2  = [item for item in self.invaliddirectories if item not in self.invaliddirectoriesline1]
-                        self.errormsg(f"These directories are invalid:\n{", ".join(self.invaliddirectoriesline1)},\n{", ".join(self.invaliddirectoriesline2)}.")
-                    else:
-                        self.errormsg(f"These directories are invalid:\n{", ".join(self.invaliddirectories)}.")
+                    if os.path.isdir(self.entry_root.get()):
+                        print("root = valid")
+                        self.new_root_path = self.entry_root.get()
+                        ChangeConfigValue("root_path",self.new_root_path)
+                    # else:
+                    #     self.invaliddirectories.append("Root")
+                
+                #gifsicle
+
+                if self.entry_gifsicle.get() == "":
+                    if ispathvalid("gifsicle_path"):
+                        print("gifsicle_path is valid")
+                    # else:
+                    #     self.invaliddirectories.append("Gifsicle")    
+                else:
+                    if os.path.isdir(self.entry_gifsicle.get()):
+                        print("gifsicle = valid")
+                        self.new_gifsicle_path = self.entry_gifsicle.get()
+                        ChangeConfigValue("gifsicle_path",self.new_gifsicle_path)
+                    # else:
+                    #     self.invaliddirectories.append("Gifsicle")
+
+
+            def selectdir1(self):
+                self.dir1_path = selectdirectory(parent=self)
+                ChangeConfigValue("image_sequence_path", self.dir1_path)
+                self.entry_imageseq.destroy()
+                self.entry_imageseq = customtkinter.CTkEntry(self, placeholder_text=self.dir1_path, width=175, height=50)
+                self.entry_imageseq.place(x=25, y=150)
+            
+            def selectdir2(self):
+                self.dir2_path = selectdirectory(parent=self)
+                ChangeConfigValue("videos_directory", self.dir2_path)
+                self.entry_viddir.destroy()
+                self.entry_viddir = customtkinter.CTkEntry(self, placeholder_text=self.dir2_path, width=175, height=50)
+                self.entry_viddir.place(x=325, y=150)
+            
+            def selectdir3(self):
+                self.dir3_path = selectdirectory(parent=self)
+                ChangeConfigValue("gif_edit_directory", self.dir3_path)
+                self.entry_gifedit.destroy()
+                self.entry_gifedit = customtkinter.CTkEntry(self, placeholder_text=self.dir3_path, width=175, height=50)
+                self.entry_gifedit.place(x=25, y=250)
+
+            def selectdir4(self):
+                self.dir4_path = selectdirectory(parent=self)
+                ChangeConfigValue("temporary_video_directory", self.dir4_path)
+                self.entry_tempvid.destroy()
+                self.entry_tempvid = customtkinter.CTkEntry(self, placeholder_text=self.dir4_path, width=175, height=50)
+                self.entry_tempvid.place(x=325, y=250)
+
+            def selectrootdir(self):
+                self.root_path = selectdirectory(parent=self)
+                ChangeConfigValue("root_path", self.root_path)
+                self.entry_root.destroy()
+                self.entry_root = customtkinter.CTkEntry(self, placeholder_text=self.root_path, width=175, height=50)
+                self.entry_root.place(x=25, y=50)
+            
+            def selectgifsicle(self):
+                self.gifsicle_path = selectdirectory(parent=self)
+                ChangeConfigValue("gifsicle_path", self.gifsicle_path)
+                self.entry_gifsicle.destroy()
+                self.entry_gifsicle = customtkinter.CTkEntry(self, placeholder_text=self.gifsicle_path, width=175, height=50)
+                self.entry_gifsicle.place(x=325, y=50)
+
 
             def createdir1(self):
 
@@ -434,7 +534,7 @@ class MainMenu(customtkinter.CTk):
 
 
             def aredirectioriesvalid(self):
-                self.invaliddirectories = []                                        # invalid directories list
+                                                        # invalid directories list
                 
                 #root
 
@@ -562,10 +662,14 @@ class MainMenu(customtkinter.CTk):
     #entering gif creation
 
     def GifCreation(self):
-        if CheckAllConfigPaths():
+        if CheckAllConfigPaths2(["videos_directory","image_sequence_path","gifsicle_path","gif_edit_directory"]):
+            if CheckAllConfigPaths() == False:
+                tempval = True
             class GifCreation(customtkinter.CTkToplevel):
                 def __init__(self):
                     super().__init__()
+
+                    
                     self.geometry("600x400")
 
                     self.button_firstloadlay1 = customtkinter.CTkButton(self,width = 550, height = 160, text="Convert Videos", command=self.layout1 )
@@ -592,12 +696,18 @@ class MainMenu(customtkinter.CTk):
 
                     self.entry_percentage = customtkinter.CTkEntry(self,placeholder_text="0.1-1",width = 50, height = 50)
                     self.entry_msvid = customtkinter.CTkEntry(self,placeholder_text="ms",width = 50, height = 50)
-                    self.entry_name = customtkinter.CTkEntry(self,placeholder_text="Enter the name of the video",width = 300, height = 50)
+                    self.entry_name = customtkinter.CTkEntry(self,placeholder_text="Enter the name of the video or select it",width = 300, height = 50)
 
                     self.button_layout2 = customtkinter.CTkButton(self,width = 100, height = 50, text="Change Mode", command=self.switchtolay2)
                     self.button_convert = customtkinter.CTkButton(self,width = 100, height = 50, text="Convert", command=self.creategiffromvideo)
                     self.button_exitvid = customtkinter.CTkButton(self,width = 100, height = 50, text="Exit", command=self.exitcrt)
-                    self.button_load = customtkinter.CTkButton(self,width = 75, height = 50, text="Load", command=self.start_video)                    
+                    self.button_filedialog = customtkinter.CTkButton(self,width = 75, height = 20, text="Select", command=self.select_video)
+                    if tempval:
+                        self.button_load = customtkinter.CTkButton(self,width = 75, height = 20, text="Load", state = "disabled", command=self.start_video)
+                    else:
+                        self.button_load = customtkinter.CTkButton(self,width = 75, height = 20, text="Load", command=self.start_video)    
+                    
+                            
 
                     self.label_name.place(x=25,y=25)   
                     self.label_percentage.place(x=73,y=125)
@@ -612,7 +722,8 @@ class MainMenu(customtkinter.CTk):
                     self.entry_name.place(x=25,y=50)
 
                     self.button_convert.place(x=25,y=250)
-                    self.button_load.place(x=350,y=50)
+                    self.button_load.place(x=335,y=78)
+                    self.button_filedialog.place(x=335,y=50)
                     self.button_layout2.place(x=150,y=325)
                     self.button_exitvid.place(x=25,y=325)
 
@@ -623,7 +734,7 @@ class MainMenu(customtkinter.CTk):
                     self.vidconvertvar = False
                     self.vidsavebuttons = False
 
- 
+
 
                     self.cap = None
                     self.playing = False
@@ -649,6 +760,7 @@ class MainMenu(customtkinter.CTk):
                     self.label_vidloaded.destroy()
                     self.button_load.destroy()
                     self.button_layout2.destroy()
+                    self.button_filedialog.destroy()
                     if self.vidsavebuttons == True:
                         self.destroyvidsavebuttons
 
@@ -702,6 +814,22 @@ class MainMenu(customtkinter.CTk):
                         self.label_fpsframes.configure(text=((f"FPS: {int(self.loaded_vid_framerate)}")))
                     else:
                         self.errormsgcrt("Input a valid video name")
+
+                def select_video(self):                                 
+                        if self.vidconvertvar == True:
+                            self.destroyvidsavebuttons()
+                        self.selectedvideo = selectfile(parent=self)
+                        self.label_msframes.configure(text="")
+                        self.stopgifvidplayback()
+                        print(self.selectedvideo)
+                        self.cap = cv2.VideoCapture(self.selectedvideo)
+                        self.playing = True
+                        self.update_frame()
+                        self.videogif_path = self.selectedvideo
+                        print(self.videogif_path)
+                        self.isvideoloaded = True
+                        self.loaded_vid_framerate = check_video_fps(self.selectedvideo)
+                        self.label_fpsframes.configure(text=((f"FPS: {int(self.loaded_vid_framerate)}")))
 
                 def update_frame(self):
                     if self.playing and self.cap is not None:
@@ -822,9 +950,26 @@ class MainMenu(customtkinter.CTk):
                     self.customloopsstate = False
                     self.loopspressed = 0
                     self.isconverton = False
+                    self.filedialogstate = False
 
                     self.button_firstloadlay1.destroy()
                     self.button_firstloadlay2.destroy()
+
+                    self.label_state = customtkinter.CTkLabel(self, text="Current State: Config Path", fg_color="transparent")
+                    self.button_selectis = customtkinter.CTkButton(self,width = 100, height = 25, text="Select a Dir", command=self.selecteddirbutton)
+                    self.button_configdir = customtkinter.CTkButton(self,width = 100, height = 25, text="Use Config", command=self.configdir)
+
+                    self.label_state.place(x=25,y=10)
+                    self.button_configdir.place(x=25,y=45)
+                    self.button_selectis.place(x=175,y=45)
+
+
+                    if tempval:
+                        self.label_state.configure(text="Config Path invalid/missing. Select a directory")
+                        
+                        self.button_configdir.configure(state="disabled")
+
+
 
                     self.label_isext = customtkinter.CTkLabel(self, text="File extension", fg_color="transparent")
                     self.label_isms = customtkinter.CTkLabel(self, text="Frame delay in ms", fg_color="transparent")
@@ -845,15 +990,15 @@ class MainMenu(customtkinter.CTk):
                     self.button_isconvert.place(x=100,y=250)    
 
 
-                    self.label_isext.place(x=35,y=25)
-                    self.label_isms.place(x=175,y=25)
+                    self.label_isext.place(x=35,y=100)
+                    self.label_isms.place(x=175,y=100)
                     # self.label_isloop.place(x=100,y=125)
                     self.label_isloadedgif.place(x=375,y=25)
                     self.label_isgifsaved.place(x=425,y=375)
                     self.label_ismsframes.place(x=375,y=0)
 
-                    self.entry_isext.place(x=25,y=50)
-                    self.entry_isms.place(x=200,y=50)              
+                    self.entry_isext.place(x=25,y=125)
+                    self.entry_isms.place(x=200,y=125)              
 
                     self.button_exitis.place(x=25,y=325)
                     self.button_layout1.place(x=150,y=325)
@@ -867,6 +1012,15 @@ class MainMenu(customtkinter.CTk):
                     self.current_frame = 0
                     self.gif_running = False
                 
+                def selecteddirbutton(self):
+                    self.isfiledir = selectdirectory(parent=self)
+                    self.filedialogstate = True
+                    self.label_state.configure(text="Current State: Selected directory")
+
+                def configdir(self):
+                    self.filedialogstate = False
+                    self.label_state.configure(text="Current State: Config Path")
+
                 def infiniteloops(self):
 
                     if self.iserrorcheck() == 1:
@@ -942,8 +1096,8 @@ class MainMenu(customtkinter.CTk):
                     if self.customloopcheck() in [1,11]:
                         if self.iserrorcheck() == 1:
                             if self.hasfilewithextension(self.entry_isext.get()):                              
-                              
-                              
+                                
+                                
                                 if self.customloopsstate == False:
                                     self.entry_isloopamount = customtkinter.CTkEntry(self,placeholder_text="Enter amount",width = 100, height = 25)
                                 self.isconverton = True
@@ -954,7 +1108,10 @@ class MainMenu(customtkinter.CTk):
 
                                 self.isext = self.entry_isext.get()
                                 self.isms = int(self.entry_isms.get())
-                                self.ispath = readconfigpath("image_sequence_path")
+                                if self.filedialogstate == True:
+                                    self.ispath = self.isfiledir
+                                else:
+                                    self.ispath = readconfigpath("image_sequence_path")
                                 self.isimageoutpath = os.path.join(readconfigpath("image_sequence_path"),"temp_gif.gif")
                                 self.isloopamount = self.entry_isloopamount.get()
                                 self.label_isloadedgif.configure(image="")
@@ -970,7 +1127,7 @@ class MainMenu(customtkinter.CTk):
                                     self.make_isgif(self.ispath,self.isimageoutpath,self.isext,self.isms,self.entry_isloopamount.get())
                                     self.isplay_gif(self.isimageoutpath)                      
                             else:
-                                self.errormsgcrt("There are no files with this extension\n in the Image Sequence directory")
+                                self.errormsgcrt("There are no files with this extension\n in the selected directory")
                         elif self.iserrorcheck() == 2:
                             self.errormsgcrt("Please fill out both fields")
                         elif self.iserrorcheck() >2:
@@ -1038,12 +1195,18 @@ class MainMenu(customtkinter.CTk):
                         return 11
                     
                 def hasfilewithextension(self,does_exist_extension):
-
-                    for root, dirs, files in os.walk(readconfigpath("image_sequence_path")):
-                        for file in files:
-                            if file.endswith(does_exist_extension):
-                                return True
-                    return False
+                    if self.isfiledir == False:  
+                        for root, dirs, files in os.walk(readconfigpath("image_sequence_path")):
+                            for file in files:
+                                if file.endswith(does_exist_extension):
+                                    return True
+                        return False
+                    else:
+                        for root, dirs, files in os.walk(self.isfiledir):
+                            for file in files:
+                                if file.endswith(does_exist_extension):
+                                    return True
+                        return False
 
                 def isplay_gif(self, gif_path):
                     gif = Image.open(gif_path)
