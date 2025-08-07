@@ -1,4 +1,4 @@
-from customtkinter import CTkImage
+from customtkinter import CTkImage, filedialog
 from PIL import Image, ImageTk, ImageSequence
 from configparser import ConfigParser
 import customtkinter
@@ -9,7 +9,9 @@ import platform
 
 tempval = 1
 
-
+def selectdirectory():
+        directoryname = filedialog.askdirectory()
+        return(directoryname)
 
 #Creating Config
 
@@ -234,12 +236,12 @@ class MainMenu(customtkinter.CTk):
                 
                 self.label_imageseq = customtkinter.CTkLabel(self, text="Image sequence folder directory", fg_color="transparent")
                 self.entry_imageseq = customtkinter.CTkEntry(self,placeholder_text=readconfigpath("image_sequence_path"),width = 175, height = 50)
-                self.button_create1 = customtkinter.CTkButton(self,width = 50, height = 50, text="Create", command=self.createdir1)
+                self.button_create1 = customtkinter.CTkButton(self,width = 50, height = 20, text="Create", command=self.createdir1)
                 self.dir1_status = False
 
                 self.label_gifedit = customtkinter.CTkLabel(self, text="Directory of GIFs to edit", fg_color="transparent")
                 self.entry_gifedit = customtkinter.CTkEntry(self,placeholder_text=readconfigpath("gif_edit_directory"),width = 175, height = 50)
-                self.button_create3 = customtkinter.CTkButton(self,width = 50, height = 50, text="Create", command=self.createdir3)
+                self.button_create3 = customtkinter.CTkButton(self,width = 50, height = 20, text="Create", command=self.createdir3)
                 self.dir3_status = False
 
                 self.label_gifsicle = customtkinter.CTkLabel(self, text="Gifsicle directory", fg_color="transparent")
@@ -247,39 +249,45 @@ class MainMenu(customtkinter.CTk):
                
                 self.label_viddir = customtkinter.CTkLabel(self, text="Videos directory", fg_color="transparent")
                 self.entry_viddir = customtkinter.CTkEntry(self,placeholder_text=readconfigpath("videos_directory"),width = 175, height = 50)
-                self.button_create2 = customtkinter.CTkButton(self,width = 50, height = 50, text="Create", command=self.createdir2)
+                self.button_create2 = customtkinter.CTkButton(self,width = 50, height = 20, text="Create", command=self.createdir2)
                 self.dir2_status = False   
 
                 self.label_tempvid = customtkinter.CTkLabel(self, text="Temporary video directory", fg_color="transparent")
                 self.entry_tempvid = customtkinter.CTkEntry(self,placeholder_text=readconfigpath("temporary_video_directory"),width = 175, height = 50)
-                self.button_create4 = customtkinter.CTkButton(self,width = 50, height = 50, text="Create", command=self.createdir4)
+                self.button_create4 = customtkinter.CTkButton(self,width = 50, height = 20, text="Create", command=self.createdir4)
                 
                 self.label_apply = customtkinter.CTkLabel(self, text="",fg_color="transparent",justify="center")
                 self.settings_apply_button = customtkinter.CTkButton(self,width = 100,height = 25, text = "Apply dirs",command=self.SubmitDirectoryChanges)
                 self.settings_exit_button = customtkinter.CTkButton(self,width = 100,height = 25, text = "Exit",command=self.exitsettings)                
                 
                 
+                self.button_create1.place(x=225,y=180)
+                self.button_create2.place(x=525,y=180)
+                self.button_create3.place(x=225,y=280)
+                self.button_create4.place(x=525,y=280)
+
+                
                 self.label_root.place(x=25,y=25)        
                 self.entry_root.place(x=25,y=50)
                 
                 self.label_imageseq.place(x=25,y=125)
                 self.entry_imageseq.place(x=25,y=150)
-                self.button_create1.place(x=225,y=150)
+                
                 
                 self.label_gifedit.place(x=25,y=225)
                 self.entry_gifedit.place(x=25,y=250)
-                self.button_create3.place(x=225,y=250)
+                
 
                 self.label_gifsicle.place(x=325,y=25)   
                 self.entry_gifsicle.place(x=325,y=50)
                 
                 self.label_viddir.place(x=325,y=125)   
                 self.entry_viddir.place(x=325,y=150)
-                self.button_create2.place(x=525,y=150)
+                
                 
                 self.label_tempvid.place(x=325,y=225)   
                 self.entry_tempvid.place(x=325,y=250)
-                self.button_create4.place(x=525,y=250)
+                
 
                 self.label_apply.place(x=102,y=325)
                 self.settings_apply_button.place(x=100,y=350)  
@@ -373,7 +381,7 @@ class MainMenu(customtkinter.CTk):
                             ChangeConfigValue("gif_edit_directory",self.dir3_path)
 
                             self.entry_gifedit.destroy()
-                            self.entry_gifedit = customtkinter.CTkEntry(self,placeholder_text=self.dir3_path,width = 150, height = 50)
+                            self.entry_gifedit = customtkinter.CTkEntry(self,placeholder_text=self.dir3_path,width = 175, height = 50)
                             self.entry_gifedit.place(x=25,y=250)                        
                     else:
                         self.errormsg("Fill out Root directory")
@@ -387,7 +395,7 @@ class MainMenu(customtkinter.CTk):
                         ChangeConfigValue("gif_edit_directory",self.dir3_path)
 
                         self.entry_gifedit.destroy()
-                        self.entry_gifedit = customtkinter.CTkEntry(self,placeholder_text=self.dir3_path,width = 150, height = 50)
+                        self.entry_gifedit = customtkinter.CTkEntry(self,placeholder_text=self.dir3_path,width = 175, height = 50)
                         self.entry_gifedit.place(x=25,y=250)
                     else:
                         print("root = invalid")
@@ -404,7 +412,7 @@ class MainMenu(customtkinter.CTk):
                             ChangeConfigValue("temporary_video_directory",self.dir4_path)
 
                             self.entry_tempvid.destroy()
-                            self.entry_tempvid = customtkinter.CTkEntry(self,placeholder_text=self.dir4_path,width = 150, height = 50)
+                            self.entry_tempvid = customtkinter.CTkEntry(self,placeholder_text=self.dir4_path,width = 175, height = 50)
                             self.entry_tempvid.place(x=325,y=250)                        
                     else:
                         self.errormsg("Fill out Root directory")
@@ -418,7 +426,7 @@ class MainMenu(customtkinter.CTk):
                         ChangeConfigValue("temporary_video_directory",self.dir4_path)
 
                         self.entry_tempvid.destroy()
-                        self.entry_tempvid = customtkinter.CTkEntry(self,placeholder_text=self.dir4_path,width = 150, height = 50)
+                        self.entry_tempvid = customtkinter.CTkEntry(self,placeholder_text=self.dir4_path,width = 175, height = 50)
                         self.entry_tempvid.place(x=325,y=250)
                     else:
                         print("root = invalid")
@@ -468,6 +476,7 @@ class MainMenu(customtkinter.CTk):
                 else:
                     if os.path.isdir(self.entry_imageseq.get()):
                         print("imageseq correct entry path")
+                        ChangeConfigValue("image_sequence_path",self.entry_imageseq.get())
                     else:
                         self.invaliddirectories.append("Image Sequence")
                 
@@ -481,6 +490,7 @@ class MainMenu(customtkinter.CTk):
                 else:
                     if os.path.isdir(self.entry_viddir.get()):
                         print("viddir correct entry path")
+                        ChangeConfigValue("videos_directory",self.entry_viddir.get())
                     else:
                         self.invaliddirectories.append("Video")
                 
@@ -494,6 +504,7 @@ class MainMenu(customtkinter.CTk):
                 else:
                     if os.path.isdir(self.entry_gifedit.get()):
                         print("gifedit correct entry path")
+                        ChangeConfigValue("gif_edit_directory",self.entry_gifedit.get())
                     else:
                         self.invaliddirectories.append("GIFS to edit")
                 
@@ -507,6 +518,7 @@ class MainMenu(customtkinter.CTk):
                 else:
                     if os.path.isdir(self.entry_tempvid.get()):
                         print("tempvid correct entry path")
+                        ChangeConfigValue("temporary_video_directory",self.entry_tempvid.get())
                     else:
                         self.invaliddirectories.append("Temporary video")
 
