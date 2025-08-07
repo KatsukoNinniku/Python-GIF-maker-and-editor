@@ -179,7 +179,7 @@ class MainMenu(customtkinter.CTk):
         self.geometry("600x400")
 
         self.button_create = customtkinter.CTkButton(self,width = 250, height = 100, text="Create a GIF", command=self.GifCreation)
-        self.button_edit = customtkinter.CTkButton(self,width = 250, height = 100, text="Edit a GIF", command=self.button_callback)
+        self.button_edit = customtkinter.CTkButton(self,width = 250, height = 100, text="Edit a GIF", command=self.GifEditor)
         self.button_exit = customtkinter.CTkButton(self,width = 150, height = 100, text="Exit", command=self.exitmainmenu)
         self.button_settings = customtkinter.CTkButton(self,width = 50, height = 50, text="settings", command=self.entersettings)
       
@@ -826,8 +826,8 @@ class MainMenu(customtkinter.CTk):
 
                     self.button_exitis = customtkinter.CTkButton(self,width = 100, height = 50, text="Exit", command=self.exitcrt)
                     self.button_layout1 = customtkinter.CTkButton(self,width = 100, height = 50, text="Change Mode", command=self.switchtolay1)
-                    # self.button_isloopinf = customtkinter.CTkButton(self,width = 100, height = 25, text="∞", command=self.infiniteloops)
-                    # self.button_isloopamnt = customtkinter.CTkButton(self,width = 100, height = 25, text="Custom", command=self.customloops)
+                    self.button_isloopinf = customtkinter.CTkButton(self,width = 100, height = 25, text="∞", command=self.infiniteloops)
+                    self.button_isloopamnt = customtkinter.CTkButton(self,width = 100, height = 25, text="Custom", command=self.customloops)
                     
                     self.button_isconvert = customtkinter.CTkButton(self,width = 100, height = 50, text="Convert", command=self.isconvertbutton)
                     self.button_isconvert.place(x=100,y=250)    
@@ -845,8 +845,8 @@ class MainMenu(customtkinter.CTk):
 
                     self.button_exitis.place(x=25,y=325)
                     self.button_layout1.place(x=150,y=325)
-                    self.button_isloopinf.place(x=25,y=150)
-                    self.button_isloopamnt.place(x=175,y=150)
+                    # self.button_isloopinf.place(x=25,y=150)
+                    # self.button_isloopamnt.place(x=175,y=150)
 
                     self.cap = None
                     self.playing = False
@@ -1110,5 +1110,17 @@ class MainMenu(customtkinter.CTk):
             gifcreation = GifCreation()
         else:
             self.MainMenuerror("Please input valid directories\nin the settings.")
+
+    def GifEditor(self):
+        if CheckAllConfigPaths():
+            class GifEditor(customtkinter.CTkToplevel):
+                def __init__(self):
+                    super().__init__()
+                    self.geometry("600x400")
+            gifeditor = GifEditor()
+        else:
+            self.MainMenuerror("Please input valid directories\nin the settings.")
+
+
 mainmenu = MainMenu()
 mainmenu.mainloop()
