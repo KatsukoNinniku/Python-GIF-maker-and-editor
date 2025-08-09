@@ -248,6 +248,7 @@ class MainMenu(customtkinter.CTk):
         class Settings(customtkinter.CTkToplevel):
             def __init__(self):
                 super().__init__()
+                global tempval
                 self.geometry("600x400")
                 self.title("Settings")
 
@@ -680,7 +681,7 @@ class MainMenu(customtkinter.CTk):
                 # LAYOUT 1
 
                 def layout1(self):
-
+                    global tempval
                     self.button_firstloadlay1.destroy()
                     self.button_firstloadlay2.destroy()
 
