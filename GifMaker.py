@@ -6,8 +6,12 @@ import os
 import cv2
 import glob
 import platform
+import subprocess
 
 tempval = False
+
+systemvar = False
+
 
 def selectdirectory(parent=None):
     # Pass parent to filedialog so it appears on top
@@ -27,6 +31,7 @@ def selectfile(parent=None):
 system = platform.system()
 
 if system == "Linux":
+    systemvar = True
     pathtoconfig = os.path.join("/home",os.getlogin(),"Documents","GIFMakerEditorConfig")
     if os.path.exists(pathtoconfig):
         print("Directory exists")
@@ -116,6 +121,15 @@ def CheckAllConfigPaths2(exclude_keys):
         return False
     else:
         return True
+
+def GifsicleLinuxCheck():
+    try:
+        result = subprocess.run(["gifsicle", "--version"])
+        return 0
+    except FileNotFoundError:
+        return 1
+    except subprocess.CalledProcessError as e:
+        return 2
 
 print(os.path.join(readconfigpath("videos_directory"),".mp4"))
 
@@ -249,12 +263,13 @@ class MainMenu(customtkinter.CTk):
             def __init__(self):
                 super().__init__()
                 global tempval
+                global systemvar
                 self.geometry("600x400")
                 self.title("Settings")
 
                 self.invaliddirectories = []
 
-                self.label_root = customtkinter.CTkLabel(self, text="Root folder directory", fg_color="transparent")
+                self.label_root = customtkinter.CTkLabel(self, text="Root/output folder directory", fg_color="transparent")
                 self.entry_root = customtkinter.CTkEntry(self,placeholder_text=readconfigpath("root_path"),width = 175, height = 50)
                 
                 self.label_imageseq = customtkinter.CTkLabel(self, text="Image sequence folder directory", fg_color="transparent")
@@ -266,10 +281,28 @@ class MainMenu(customtkinter.CTk):
                 self.entry_gifedit = customtkinter.CTkEntry(self,placeholder_text=readconfigpath("gif_edit_directory"),width = 175, height = 50)
                 self.button_create3 = customtkinter.CTkButton(self,width = 75, height = 20, text="Create", command=self.createdir3)
                 self.dir3_status = False
+                
+                if systemvar:
+                    self.label_gifsicle = customtkinter.CTkLabel(self, text="Gifsicle state:", fg_color="transparent")
 
-                self.label_gifsicle = customtkinter.CTkLabel(self, text="Gifsicle directory", fg_color="transparent")
-                self.entry_gifsicle = customtkinter.CTkEntry(self,placeholder_text=readconfigpath("gifsicle_path"),width = 175, height = 50)
-               
+                    self.label_gifsicle.place(x=325,y=60)   
+
+                    if GifsicleLinuxCheck() == 0:
+                        self.label_gifsicle.configure(text="Gifsicle state: Found")
+                    elif GifsicleLinuxCheck() == 1:
+                        self.label_gifsicle.configure(text="Gifsicle state: Not Found")
+                    else:
+                        self.label_gifsicle.configure(text="Gifsicle state: Error, cannot retrieve --version")
+                    
+                else:
+                    self.label_gifsicle = customtkinter.CTkLabel(self, text="Gifsicle directory", fg_color="transparent")
+                    self.entry_gifsicle = customtkinter.CTkEntry(self,placeholder_text=readconfigpath("gifsicle_path"),width = 175, height = 50)
+                    self.button_selectgifsicle = customtkinter.CTkButton(self,width = 75, height = 30, text="Select", command=self.selectgifsicle)
+                    self.label_gifsicle.place(x=325,y=25)   
+                    self.entry_gifsicle.place(x=325,y=50)
+                    self.button_selectgifsicle.place(x=510,y=60)
+                    
+
                 self.label_viddir = customtkinter.CTkLabel(self, text="Videos directory", fg_color="transparent")
                 self.entry_viddir = customtkinter.CTkEntry(self,placeholder_text=readconfigpath("videos_directory"),width = 175, height = 50)
                 self.button_create2 = customtkinter.CTkButton(self,width = 75, height = 20, text="Create", command=self.createdir2)
@@ -288,7 +321,7 @@ class MainMenu(customtkinter.CTk):
                 self.button_select3 = customtkinter.CTkButton(self,width = 75, height = 20, text="Select", command=self.selectdir3)
                 self.button_select4 = customtkinter.CTkButton(self,width = 75, height = 20, text="Select", command=self.selectdir4)
                 self.button_selecthome = customtkinter.CTkButton(self,width = 75, height = 30, text="Select", command=self.selectrootdir)
-                self.button_selectgifsicle = customtkinter.CTkButton(self,width = 75, height = 30, text="Select", command=self.selectgifsicle)
+                
 
 
 
@@ -303,7 +336,7 @@ class MainMenu(customtkinter.CTk):
                 self.button_select3.place(x=210,y=250)
                 self.button_select4.place(x=510,y=250)
                 self.button_selecthome.place(x=210,y=60)
-                self.button_selectgifsicle.place(x=510,y=60)
+                
 
                 self.label_root.place(x=25,y=25)        
                 self.entry_root.place(x=25,y=50)
@@ -316,8 +349,7 @@ class MainMenu(customtkinter.CTk):
                 self.entry_gifedit.place(x=25,y=250)
                 
 
-                self.label_gifsicle.place(x=325,y=25)   
-                self.entry_gifsicle.place(x=325,y=50)
+                
                 
                 self.label_viddir.place(x=325,y=125)   
                 self.entry_viddir.place(x=325,y=150)
@@ -333,37 +365,21 @@ class MainMenu(customtkinter.CTk):
               
 
             def SubmitDirectoryChanges(self):
-                # self.aredirectioriesvalid()
-                self.label_apply.configure(text="Changes Applied")
-
-
-                if self.entry_root.get() == "":
-                    if ispathvalid("root_path"):
-                        print("root_path is valid")
-                    # else:
-                    #     self.invaliddirectories.append("Root")    
+                self.aredirectioriesvalid()
+                print(self.invaliddirectories)
+                if len(self.invaliddirectories) == 0:
+                    self.label_apply.configure(text="Changes Applied")
                 else:
-                    if os.path.isdir(self.entry_root.get()):
-                        print("root = valid")
-                        self.new_root_path = self.entry_root.get()
-                        ChangeConfigValue("root_path",self.new_root_path)
-                    # else:
-                    #     self.invaliddirectories.append("Root")
+                    if len(self.invaliddirectories) ==1:
+                        self.errormsg(f"{"".join(self.invaliddirectories)} directory path is invalid")
+                    elif len(self.invaliddirectories) >3:
+                        self.invaliddirectoriesline1 = self.invaliddirectories[:3]
+                        self.invaliddirectoriesline2 = self.invaliddirectoriesline2  = [item for item in self.invaliddirectories if item not in self.invaliddirectoriesline1]
+                        self.errormsg(f"These directories are invalid:\n{", ".join(self.invaliddirectoriesline1)},\n{", ".join(self.invaliddirectoriesline2)}.")
+                    else:
+                        self.errormsg(f"These directories are invalid:\n{", ".join(self.invaliddirectories)}.")
                 
-                #gifsicle
-
-                if self.entry_gifsicle.get() == "":
-                    if ispathvalid("gifsicle_path"):
-                        print("gifsicle_path is valid")
-                    # else:
-                    #     self.invaliddirectories.append("Gifsicle")    
-                else:
-                    if os.path.isdir(self.entry_gifsicle.get()):
-                        print("gifsicle = valid")
-                        self.new_gifsicle_path = self.entry_gifsicle.get()
-                        ChangeConfigValue("gifsicle_path",self.new_gifsicle_path)
-                    # else:
-                    #     self.invaliddirectories.append("Gifsicle")
+                
 
 
             def selectdir1(self):
@@ -536,7 +552,7 @@ class MainMenu(customtkinter.CTk):
 
             def aredirectioriesvalid(self):
                                                         # invalid directories list
-                
+                self.invaliddirectories = []
                 #root
 
                 if self.entry_root.get() == "":
@@ -554,60 +570,60 @@ class MainMenu(customtkinter.CTk):
                 
                 #gifsicle
 
-                if self.entry_gifsicle.get() == "":
-                    if ispathvalid("gifsicle_path"):
-                        print("gifsicle_path is valid")
-                    else:
-                        self.invaliddirectories.append("Gifsicle")    
-                else:
-                    if os.path.isdir(self.entry_gifsicle.get()):
-                        print("gifsicle = valid")
-                        self.new_gifsicle_path = self.entry_gifsicle.get()
-                        ChangeConfigValue("gifsicle_path",self.new_gifsicle_path)
-                    else:
-                        self.invaliddirectories.append("Gifsicle")
+                # if self.entry_gifsicle.get() == "":
+                #     if ispathvalid("gifsicle_path"):
+                #         print("gifsicle_path is valid")
+                #     else:
+                #         self.invaliddirectories.append("Gifsicle")    
+                # else:
+                #     if os.path.isdir(self.entry_gifsicle.get()):
+                #         print("gifsicle = valid")
+                #         self.new_gifsicle_path = self.entry_gifsicle.get()
+                #         ChangeConfigValue("gifsicle_path",self.new_gifsicle_path)
+                #     else:
+                #         self.invaliddirectories.append("Gifsicle")
                 
                 #Image Sequence
 
-                if self.entry_imageseq.get() == "":
-                    if ispathvalid("image_sequence_path"):
-                        print("Imageseq correct config path")
-                    else:
-                        self.invaliddirectories.append("Image Sequence")
-                else:
-                    if os.path.isdir(self.entry_imageseq.get()):
-                        print("imageseq correct entry path")
-                        ChangeConfigValue("image_sequence_path",self.entry_imageseq.get())
-                    else:
-                        self.invaliddirectories.append("Image Sequence")
+                # if self.entry_imageseq.get() == "":
+                #     if ispathvalid("image_sequence_path"):
+                #         print("Imageseq correct config path")
+                #     else:
+                #         self.invaliddirectories.append("Image Sequence")
+                # else:
+                #     if os.path.isdir(self.entry_imageseq.get()):
+                #         print("imageseq correct entry path")
+                #         ChangeConfigValue("image_sequence_path",self.entry_imageseq.get())
+                #     else:
+                #         self.invaliddirectories.append("Image Sequence")
                 
                 #video
 
-                if self.entry_viddir.get() == "":
-                    if ispathvalid("videos_directory"):
-                        print("viddir correct config path")
-                    else:
-                        self.invaliddirectories.append("Video")
-                else:
-                    if os.path.isdir(self.entry_viddir.get()):
-                        print("viddir correct entry path")
-                        ChangeConfigValue("videos_directory",self.entry_viddir.get())
-                    else:
-                        self.invaliddirectories.append("Video")
+                # if self.entry_viddir.get() == "":
+                #     if ispathvalid("videos_directory"):
+                #         print("viddir correct config path")
+                #     else:
+                #         self.invaliddirectories.append("Video")
+                # else:
+                #     if os.path.isdir(self.entry_viddir.get()):
+                #         print("viddir correct entry path")
+                #         ChangeConfigValue("videos_directory",self.entry_viddir.get())
+                #     else:
+                #         self.invaliddirectories.append("Video")
                 
                 #gif edit
                 
-                if self.entry_gifedit.get() == "":
-                    if ispathvalid("gif_edit_directory"):
-                        print("gifedit correct config path")
-                    else:
-                        self.invaliddirectories.append("GIFS to edit")
-                else:
-                    if os.path.isdir(self.entry_gifedit.get()):
-                        print("gifedit correct entry path")
-                        ChangeConfigValue("gif_edit_directory",self.entry_gifedit.get())
-                    else:
-                        self.invaliddirectories.append("GIFS to edit")
+                # if self.entry_gifedit.get() == "":
+                #     if ispathvalid("gif_edit_directory"):
+                #         print("gifedit correct config path")
+                #     else:
+                #         self.invaliddirectories.append("GIFS to edit")
+                # else:
+                #     if os.path.isdir(self.entry_gifedit.get()):
+                #         print("gifedit correct entry path")
+                #         ChangeConfigValue("gif_edit_directory",self.entry_gifedit.get())
+                #     else:
+                #         self.invaliddirectories.append("GIFS to edit")
                 
                 #temporary video
 
@@ -669,6 +685,7 @@ class MainMenu(customtkinter.CTk):
             class GifCreation(customtkinter.CTkToplevel):
                 def __init__(self):
                     super().__init__()
+                    global tempval
 
                     
                     self.geometry("600x400")
@@ -947,7 +964,7 @@ class MainMenu(customtkinter.CTk):
                 # LAYOUT 2
 
                 def layout2(self):
-
+                    global tempval
                     self.customloopsstate = False
                     self.loopspressed = 0
                     self.isconverton = False
@@ -1289,11 +1306,38 @@ class MainMenu(customtkinter.CTk):
 
     def GifEditor(self):
         if CheckAllConfigPaths():
-            class GifEditor(customtkinter.CTkToplevel):
-                def __init__(self):
-                    super().__init__()
-                    self.geometry("600x400")
-            gifeditor = GifEditor()
+            if CheckAllConfigPaths2(["videos_directory","image_sequence_path","gifsicle_path","gif_edit_directory"]):
+                class GifEditor(customtkinter.CTkToplevel):
+                    def __init__(self):
+                        super().__init__()
+                        self.geometry("600x400")
+                        self.button_test = customtkinter.CTkButton(self,width = 550, height = 160, text="Error", command=self.testerroru)
+
+                        self.button_test.pack(padx=10,pady=10)
+
+
+                    def testerroru(self):
+                        self.errormsgedt("test erroru")
+
+                    def errormsgedt(self,errortext):
+                        class ErrorMessageCrt(customtkinter.CTkToplevel):
+                            def __init__(self):
+                                super().__init__()
+                                self.geometry("300x200")
+                                self.title("Error")
+                                
+                                self.error_label = customtkinter.CTkLabel(self, text=errortext, fg_color="transparent")
+                                self.error_label.pack (padx=10,pady=25)
+
+                                self.error_exit_button = customtkinter.CTkButton(self,width = 100,height = 50, text = "Okay",command=self.exiterror)
+                                self.error_exit_button.place(x=100,y=125)                        
+                            def exiterror(self):
+                                print("exiting")
+                                self.destroy()
+                        errormessagecrt = ErrorMessageCrt()  
+                gifeditor = GifEditor()
+            else:
+                self.MainMenuerror("Please input valid directories\nin the settings.")
         else:
             self.MainMenuerror("Please input valid directories\nin the settings.")
 

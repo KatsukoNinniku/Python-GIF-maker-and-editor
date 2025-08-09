@@ -1,9 +1,13 @@
-from customtkinter import filedialog    
+import subprocess
 
-def selectfile():
-    filename = filedialog.askopenfilename(
-        filetypes=[("MP4 files", "*.mp4")]
-    )
-    print(filename)
 
-selectfile()
+def GifsicleLinuxCheck():
+    try:
+        result = subprocess.run(["gifsicle", "--version"])
+        return 0
+    except FileNotFoundError:
+        return 1
+    except subprocess.CalledProcessError as e:
+        return 2
+
+print(GifsicleLinuxCheck())
