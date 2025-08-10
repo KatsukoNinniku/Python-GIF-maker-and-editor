@@ -1,5 +1,5 @@
 from customtkinter import CTkImage, filedialog
-from PIL import Image, ImageTk, ImageSequence
+from PIL import Image, ImageTk, ImageSequence, ImageDraw, ImageFont
 from configparser import ConfigParser
 import customtkinter
 import os
@@ -11,16 +11,23 @@ import subprocess
 tempval = False
 
 systemvar = False
-
+conflict = 0
 
 def selectdirectory(parent=None):
     # Pass parent to filedialog so it appears on top
     directoryname = filedialog.askdirectory(parent=parent)
     return directoryname
 
-def selectfile(parent=None):
+def selectfilemp4(parent=None):
     filename = filedialog.askopenfilename(
         filetypes=[("MP4 files", "*.mp4")],
+        parent=parent
+    )
+    return filename
+
+def selectfilegif(parent=None):
+    filename = filedialog.askopenfilename(
+        filetypes=[("GIF files", "*.gif")],
         parent=parent
     )
     return filename
@@ -836,7 +843,7 @@ class MainMenu(customtkinter.CTk):
                 def select_video(self):                                 
                         if self.vidconvertvar == True:
                             self.destroyvidsavebuttons()
-                        self.selectedvideo = selectfile(parent=self)
+                        self.selectedvideo = selectfilemp4(parent=self)
                         self.label_msframes.configure(text="")
                         self.stopgifvidplayback()
                         print(self.selectedvideo)
@@ -1307,17 +1314,183 @@ class MainMenu(customtkinter.CTk):
     def GifEditor(self):
         if CheckAllConfigPaths():
             if CheckAllConfigPaths2(["videos_directory","image_sequence_path","gifsicle_path","gif_edit_directory"]):
-                class GifEditor(customtkinter.CTkToplevel):
+                class MyFrame(customtkinter.CTkScrollableFrame):
+                    def __init__(self, master, **kwargs):
+                        super().__init__(master, **kwargs)
+
+                        # add widgets onto the frame...
+                        self.button_optimize = customtkinter.CTkButton(self, width = 298,text = "Optimize",command = self.button_callback)
+                        self.button_optimize.grid(row=0, column=0, padx=0)
+                        self.button_accell = customtkinter.CTkButton(self, width = 298,text = "Change speed", command = self.button_callback)
+                        self.button_accell.grid(row=1, column=0, pady=6)
+                        self.button_text = customtkinter.CTkButton(self, width = 298,text = "Add text", command = self.button_callback)
+                        self.button_text.grid(row=2, column=0, padx=0)
+                        # self.button4 = customtkinter.CTkButton(self, width = 248)
+                        # self.button4.grid(row=3, column=0, pady=6)
+                        # self.button5 = customtkinter.CTkButton(self, width = 248)
+                        # self.button5.grid(row=4, column=0, padx=0)
+                        # self.button6 = customtkinter.CTkButton(self, width = 248)
+                        # self.button6.grid(row=5, column=0, pady=6)
+                    def button_callback(self):
+                        print("button clicked")
+                
+                
+                class GifEdit(customtkinter.CTkToplevel):
                     def __init__(self):
                         super().__init__()
-                        self.geometry("600x400")
-                        self.button_test = customtkinter.CTkButton(self,width = 550, height = 160, text="Error", command=self.testerroru)
+                        global conflict
+                        self.geometry("900x400")
+                        self.title("GIF Editor")
+                        self.resizable(False,False)
+                        
+                        self.loadedgifpath = ""
+                        self.gifeditfound = False
+                        self.rootfound = False
+                        self.founderrors = []
 
-                        self.button_test.pack(padx=10,pady=10)
+                        self.label_loadedgifname = customtkinter.CTkLabel(self,text="Loaded GIF:",fg_color="transparent")
+                        self.label_outputgifname = customtkinter.CTkLabel(self,text="Output:",fg_color="transparent")
+                        self.label_loadedgif = customtkinter.CTkLabel(self,text="",height=160,width=160,fg_color="gray20")
+                        self.label_outputgif = customtkinter.CTkLabel(self,text="",height=160,width=160,fg_color="gray20")
+
+                        self.entry_name = customtkinter.CTkEntry(self,placeholder_text="Enter name or select it",width = 175, height = 50)
 
 
-                    def testerroru(self):
-                        self.errormsgedt("test erroru")
+                        self.button_filedialog = customtkinter.CTkButton(self,width = 122, height = 20, text="Select from disk", command=self.select_gif)
+                        self.button_load = customtkinter.CTkButton(self,width = 122, height = 20, text="Load from name", command=self.FindFromName)
+                        
+                        self.my_frame = MyFrame(master=self, width=300, height=265)
+                        
+                        self.entry_name.place(x=25,y=25)
+
+                        self.label_loadedgifname.place(x=715,y=0)
+                        self.label_outputgifname.place(x=715,y=190)
+                        self.label_loadedgif.place(x=715,y=25)
+                        self.label_outputgif.place(x=715,y=215)
+                        
+                        
+                        self.button_filedialog.place(x=225,y=25)
+                        self.button_load.place(x=225,y=53)
+                        
+                        
+                        
+                        self.my_frame.place(x=25,y=100)
+
+                    
+                    def select_gif(self):
+                        self.stopgifvidplayback()
+                        self.loadedgifpath = selectfilegif(parent=self)
+                        self.play_gifedit(self.loadedgifpath)
+                    
+                    def play_gifedit(self, gif_path):
+                        gif = Image.open(gif_path)
+                        self.gif_frames = []
+                        self.current_frame = 0
+                        self.gif_running = True
+                        self.gif_duration = gif.info.get("duration", 100)
+
+                        for frame in ImageSequence.Iterator(gif):
+                            frame = frame.convert("RGBA")
+                            frame.thumbnail((160, 160))
+                            background = Image.new("RGBA", (160, 160), (0, 0, 0, 0))
+                            x = (160 - frame.width) // 2
+                            y = (160 - frame.height) // 2
+                            background.paste(frame, (x, y), frame)
+                            self.gif_frames.append(ImageTk.PhotoImage(background))
+
+                        def animate():                      
+                            if self.gif_running and self.gif_frames:
+                                self.label_loadedgif.configure(image=self.gif_frames[self.current_frame])
+                                self.current_frame = (self.current_frame + 1) % len(self.gif_frames)
+                                self.after(self.gif_duration, animate)
+
+                        animate()
+
+                    def stopgifvidplayback(self):
+                        self.gif_running = False
+                        self.label_loadedgif.configure(image="")
+                        self.playing = False
+                        self.label_outputgif.configure(image="")
+
+
+                    def button_callback(self):
+                        print("button clicked")
+
+                    def FindFromName(self):
+                        self.stopgifvidplayback()
+                        self.gifeditfound = False
+                        self.rootfound = False
+                        self.founderrors = []
+                        if os.path.exists(os.path.join(readconfigpath("gif_edit_directory"),(self.entry_name.get()+".gif"))):
+                            self.gifeditfound = True
+                        else:
+                            self.founderrors.append("Gif Edit directory")
+                        if os.path.exists(os.path.join(readconfigpath("root_path"),(self.entry_name.get()+".gif"))):
+                            self.rootfound = True
+                        else:
+                            self.founderrors.append("Root directory")
+
+                        if len(self.founderrors) == 2:
+                            self.errormsgedt("Unable to find the desired GIF\nin both Root and Gif Edit directories")
+                        else:
+                            print(self.rootfound)
+                            print(self.gifeditfound)
+                            if self.gifeditfound and self.rootfound:
+                                self.ConflictMenu()
+                            
+                            elif self.rootfound and self.gifeditfound == False:
+                                self.loadedgifpath = os.path.join(readconfigpath("root_path"),(self.entry_name.get()+".gif"))
+                                self.play_gifedit(self.loadedgifpath)
+                            elif self.gifeditfound and self.rootfound == False:
+                                self.loadedgifpath = os.path.join(readconfigpath("gif_edit_directory"),(self.entry_name.get()+".gif"))
+                                self.play_gifedit(self.loadedgifpath)
+                            
+                    
+
+                        
+
+
+
+
+                    def ConflictMenu(self):
+                        class ConflictMenuDisplay(customtkinter.CTkToplevel):
+                            def __init__(self, parent):
+                                super().__init__()
+                                self.parent = parent  # Reference to GifEdit instance
+                                self.geometry("300x200")
+                                self.title("Error")
+                                self.error_label = customtkinter.CTkLabel(self, text="Found GIFs of the same name\nin both Root and Gif Edit directory\nSelect which one to use", fg_color="transparent")
+                                self.error_label.pack (padx=10,pady=25)
+
+                                self.error_exit_button = customtkinter.CTkButton(self,width = 113,height = 50, text = "Root",command=self.conflictroot)
+                                self.error_exit_button.place(x=25,y=125)                        
+                                self.error_exit_button2 = customtkinter.CTkButton(self,width = 113,height = 50, text = "Gif Edit",command=self.conflictgifedit)
+                                self.error_exit_button2.place(x=162,y=125) 
+
+                            def conflictroot(self):
+                                gif_path = os.path.join(readconfigpath("root_path"), (self.parent.entry_name.get() + ".gif"))
+                                self.parent.loadedgifpath = gif_path
+                                self.parent.play_gifedit(gif_path)
+                                # Example: update a label in GifEdit
+                                self.parent.label_loadedgifname.configure(text=f"Loaded GIF: {os.path.basename(gif_path)}")
+                                self.destroy()
+
+                            def conflictgifedit(self):
+                                gif_path = os.path.join(readconfigpath("gif_edit_directory"), (self.parent.entry_name.get() + ".gif"))
+                                self.parent.loadedgifpath = gif_path
+                                self.parent.play_gifedit(gif_path)
+                                # Example: update a label in GifEdit
+                                self.parent.label_loadedgifname.configure(text=f"Loaded GIF: {os.path.basename(gif_path)}")
+                                self.destroy()
+
+                            def exiterror(self):
+                                print("exiting")
+                                self.destroy()
+
+                        # Pass self (GifEdit instance) to the conflict menu
+                        conflictmenu = ConflictMenuDisplay(self) 
+
+
 
                     def errormsgedt(self,errortext):
                         class ErrorMessageCrt(customtkinter.CTkToplevel):
@@ -1335,7 +1508,7 @@ class MainMenu(customtkinter.CTk):
                                 print("exiting")
                                 self.destroy()
                         errormessagecrt = ErrorMessageCrt()  
-                gifeditor = GifEditor()
+                gifeditor = GifEdit()
             else:
                 self.MainMenuerror("Please input valid directories\nin the settings.")
         else:
