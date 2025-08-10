@@ -1,61 +1,1793 @@
+from customtkinter import CTkImage, filedialog
+from PIL import Image, ImageTk, ImageSequence, ImageDraw, ImageFont
+from configparser import ConfigParser
 import customtkinter
+import os
+import cv2
+import glob
+import platform
+import subprocess
+
+tempval = False
+
+systemvar = False
+conflict = 0
+
+def selectdirectory(parent=None):
+    # Pass parent to filedialog so it appears on top
+    directoryname = filedialog.askdirectory(parent=parent)
+    return directoryname
+
+def selectfilemp4(parent=None):
+    filename = filedialog.askopenfilename(
+        filetypes=[("MP4 files", "*.mp4")],
+        parent=parent
+    )
+    return filename
+
+def selectfilegif(parent=None):
+    filename = filedialog.askopenfilename(
+        filetypes=[("GIF files", "*.gif")],
+        parent=parent
+    )
+    return filename
 
 
+#Creating Config
+
+system = platform.system()
+
+if system == "Linux":
+    systemvar = True
+    pathtoconfig = os.path.join("/home",os.getlogin(),"Documents","GIFMakerEditorConfig")
+    if os.path.exists(pathtoconfig):
+        print("Directory exists")
+    else:
+        os.makedirs(pathtoconfig, exist_ok=True)
+
+pathtoconfig = os.path.join(pathtoconfig,"GIF_Maker_and_Editor_config.ini")
+
+
+if os.path.isfile(pathtoconfig):
+    print("File exists!")
+    Ustawienia = ConfigParser()
+    Ustawienia.read(pathtoconfig)
+
+else:
+    print("File does not exist.")
+    Ustawienia = ConfigParser()
+    if system == "Linux":
+        Ustawienia["Default"] = {
+            "Root_Path": "Enter directory",
+            "Image_Sequence_Path": "Enter or create with root",
+            "Videos_Directory": "Enter or create with root",
+            "GIF_Edit_Directory": "Enter or create with root",
+            "Temporary_Video_Directory": "Enter or create with root",
+        }
+    else:
+        Ustawienia["Default"] = {
+            "Root_Path": "Enter directory",
+            "Gifsicle_Path": "Enter directory",
+            "Image_Sequence_Path": "Enter or create with root",
+            "Videos_Directory": "Enter or create with root",
+            "GIF_Edit_Directory": "Enter or create with root",
+            "Temporary_Video_Directory": "Enter or create with root",
+        }
+
+    with open(pathtoconfig,"w") as f:
+        Ustawienia.write(f)
+
+#Functions to be defined
+
+    #Creating a directory
+
+def createfolder(parent_dir,new_folder_name):
+
+    parent_folder = parent_dir
+    new_directory_name = new_folder_name
+    new_directory_path = os.path.join(parent_folder, new_directory_name)
+    os.makedirs(new_directory_path, exist_ok=True)
+
+    print(f"Directory created at: {new_directory_path}")
     
-class MyFrame(customtkinter.CTkScrollableFrame):
-    def __init__(self, master, **kwargs):
-        super().__init__(master, **kwargs)
+    #Changing config
 
-        # add widgets onto the frame...
-        self.button_optimize = customtkinter.CTkButton(self, width = 298,text = "Optimize",command = self.button_callback)
-        self.button_optimize.grid(row=0, column=0, padx=0)
-        self.button_accell = customtkinter.CTkButton(self, width = 298,text = "Change speed", command = self.button_callback)
-        self.button_accell.grid(row=1, column=0, pady=6)
-        self.button_text = customtkinter.CTkButton(self, width = 298,text = "Add text", command = self.button_callback)
-        self.button_text.grid(row=2, column=0, padx=0)
-        # self.button4 = customtkinter.CTkButton(self, width = 248)
-        # self.button4.grid(row=3, column=0, pady=6)
-        # self.button5 = customtkinter.CTkButton(self, width = 248)
-        # self.button5.grid(row=4, column=0, padx=0)
-        # self.button6 = customtkinter.CTkButton(self, width = 248)
-        # self.button6.grid(row=5, column=0, pady=6)
-    def button_callback(self):
-        print("button clicked")
+def ChangeConfigValue(path_to_change,dir_to_change):
+    Ustawienia.set("Default",path_to_change,dir_to_change)
+    with open(pathtoconfig, "w") as f:
+        Ustawienia.write(f)
 
-class App(customtkinter.CTk):
+    #Checking if path is valid
+
+def ispathvalid(path_to_read):
+    if os.path.isdir(Ustawienia.get("Default",path_to_read)):
+        return True
+    else:
+        return False
+
+    #Read a path in the config
+
+def readconfigpath(path_to_read):
+    return Ustawienia.get("Default",path_to_read)
+
+    #Check all config paths if valid
+
+def CheckAllConfigPaths():
+    invalid_paths = 0
+    for key in Ustawienia["Default"]:
+        if ispathvalid(key):
+            print(f"{key}: Valid path")
+        else:
+            invalid_paths += 1
+    if invalid_paths > 0:
+        return False
+    else:
+        return True
+    
+def CheckAllConfigPaths2(exclude_keys):
+    invalid_paths = 0
+    for key in Ustawienia["Default"]:
+        if key not in exclude_keys:
+            if ispathvalid(key):
+                print(f"{key}: Valid path")
+            else:
+                invalid_paths += 1
+    if invalid_paths > 0:
+        return False
+    else:
+        return True
+
+def GifsicleLinuxCheck():
+    try:
+        result = subprocess.run(["gifsicle", "--version"])
+        return 0
+    except FileNotFoundError:
+        return 1
+    except subprocess.CalledProcessError as e:
+        return 2
+
+print(os.path.join(readconfigpath("videos_directory"),".mp4"))
+
+def czyszczenie_plikow_temp(dir_to_clean):
+    dir_to_clean=os.path.join(dir_to_clean,"")
+    usuwanie_plikow = glob.glob(dir_to_clean + "*")
+    for f in usuwanie_plikow:
+        os.remove(f)
+
+def deleteafile(filewithdir):
+    if os.path.exists(filewithdir):
+        os.remove(filewithdir)
+    else:
+        print("The file does not exist") 
+
+vid_name="BrB1Tru85anVx1oJ"
+video_loaded = os.path.join(readconfigpath("videos_directory"),(vid_name+".mp4"))
+
+def check_video_fps(video_file_fps):
+    global check_frame_rate  # Declare the variable as global to modify it
+    
+    # Open the video file
+    capfr = cv2.VideoCapture(video_file_fps)
+    
+    if not capfr.isOpened():
+        print("Error: Could not open video.")
+        return
+    
+    # Get the frame rate (frames per second) of the video
+    check_frame_rate = capfr.get(cv2.CAP_PROP_FPS)
+    
+    if check_frame_rate == 0:
+        print("Error: Could not retrieve frame rate.")
+    else:
+        print(f"Video frame rate: {check_frame_rate} FPS")
+        return check_frame_rate  # Modify the global variable
+    
+    # Release the video capture object
+    capfr.release()
+
+def extract_frames_then_gif(video_file,vid_speed,temp_ms):
+    vid_speed = 1/vid_speed
+    check_video_fps(video_file)
+    czyszczenie_plikow_temp(readconfigpath("temporary_video_directory"))
+
+    cap = cv2.VideoCapture(video_file)
+    
+    frame_rate = check_video_fps(video_file) / vid_speed
+    frame_count = 0
+    
+    
+    while True:
+        ret, frame = cap.read()
+        
+        if not ret:
+            break
+        
+        frame_count += 1
+        
+        if frame_count % int(cap.get(5) / frame_rate) == 0:
+            video_output_file = f"{readconfigpath("temporary_video_directory")}/{frame_count}.png"
+            cv2.imwrite(video_output_file, frame)
+    
+    cap.release()
+    cv2.destroyAllWindows()
+
+    temp_file_path = os.path.join(readconfigpath("temporary_video_directory"), "temp_gif.gif")
+
+    def make_temp_gif(frame_folder):
+        frame_folder=os.path.join(frame_folder,"")
+        temp_frames = [Image.open(image) for image in sorted(glob.glob(f"{frame_folder}/*.png"), key=lambda x: int(os.path.splitext(os.path.basename(x))[0]))]
+        
+        temp_frame_one = temp_frames[0]
+        temp_frame_one.save(fp=temp_file_path, format="GIF", append_images=temp_frames[1:],
+                            save_all=True, duration=temp_ms, loop=0)
+
+    make_temp_gif(readconfigpath("temporary_video_directory"))
+
+def dodawanie_tekstu(wielkosc_czcionki, image1, text):
+    """
+    Function to add text to an image with wrapping.
+    Accepts only a PIL Image object as image1.
+    """
+    ogwidth, ogheight = image1.size
+    tempheight = ogwidth * 2
+    imagetemp = Image.new(mode="RGB", size=[ogwidth, tempheight], color=(255, 0, 255))
+    szerokosc = ogwidth - ((ogwidth * 0.03) * 2)
+
+    def wrap_text(text, font, max_width, draw):
+        """
+        Wraps text to fit within the max_width.
+        """
+        words = text.split()
+        lines = [] # Holds each line in the text box
+        current_line = [] # Holds the current line under evaluation.
+
+        for word in words:
+            # Check the width of the current line with the new word added
+            test_line = ' '.join(current_line + [word])
+            width = draw.textlength(test_line, font=font)
+            if width <= max_width:
+                current_line.append(word)
+            else:
+                # If the line is too wide, finalize the current line and start a new one
+                lines.append(' '.join(current_line))
+                current_line = [word]
+
+        # Add the last line
+        if current_line:
+            lines.append(' '.join(current_line))
+
+        return lines
+
+    draw = ImageDraw.Draw(imagetemp) 
+
+    # Set text, font, and max width
+    try:
+        font = ImageFont.truetype("arial.ttf", wielkosc_czcionki)
+    except OSError:
+        font = ImageFont.load_default()
+    max_width = szerokosc
+
+    wrapped_lines = wrap_text(text, font, max_width, draw)
+
+    description = "\n".join(wrapped_lines)
+
+    draw_output = ImageDraw.Draw(imagetemp)
+
+    # Calculate bounding box for multiline text
+    bbox = draw_output.multiline_textbbox((0, 0), description, font=font, spacing=6)
+    text_height = bbox[3] - bbox[1]
+
+    imageoutput = Image.new(mode = "RGB", size = [ogwidth, text_height + wielkosc_czcionki], color = (255, 255, 255))
+
+    # Center coordinates
+    center_x = imageoutput.width // 2
+    center_y = imageoutput.height // 2
+
+    # Draw the text centered vertically and horizontally
+    ImageDraw.Draw(imageoutput).multiline_text(
+        (center_x, center_y),
+        description,
+        font=font,
+        anchor="mm",  # center-middle anchor
+        align="center",
+        fill="black",
+        spacing=6
+    )
+
+    newwidth, newheight = imageoutput.size
+
+    def get_concat_v(imageoutput, image1):
+        dst = Image.new('RGB', (newwidth, newheight + ogheight))
+        dst.paste(imageoutput, (0, 0))
+        dst.paste(image1, (0, newheight))
+        return dst
+
+    # Return the concatenated image
+    return get_concat_v(imageoutput, image1)
+
+def GifText(gif_path, text, font_size, out_path):
+    frames = [f.copy() for f in ImageSequence.Iterator(Image.open(gif_path))]
+    new_gif = []
+    font_size = int(font_size)
+    # Ensure all frames are the same size and mode
+    size = frames[0].size
+    for frame in frames:
+        frame = frame.convert("RGBA").resize(size)
+        result_image = dodawanie_tekstu(font_size, frame, text)
+        # Convert to "P" mode for GIF
+        result_image = result_image.convert("P", palette=Image.ADAPTIVE)
+        new_gif.append(result_image)
+    new_gif_name_path = out_path
+    new_gif[0].save(
+        new_gif_name_path,
+        save_all=True,
+        append_images=new_gif[1:],
+        loop=0,
+        optimize=True,
+        duration=Image.open(gif_path).info.get("duration", 100),
+        disposal=2
+    )
+    print("DONE")
+
+#GUI code
+
+class MainMenu(customtkinter.CTk):
     def __init__(self):
         super().__init__()
-        self.geometry("900x400")
-        
-        self.label_loadedgifname = customtkinter.CTkLabel(self,text="Loaded GIF:",fg_color="transparent")
-        self.label_outputgifname = customtkinter.CTkLabel(self,text="Output:",fg_color="transparent")
-        self.label_loadedgif = customtkinter.CTkLabel(self,text="",height=160,width=160,fg_color="gray20")
-        self.label_outputgif = customtkinter.CTkLabel(self,text="",height=160,width=160,fg_color="gray20")
+        self.title("GIF Maker and Editor")
+        self.geometry("600x400")
 
-        self.entry_name = customtkinter.CTkEntry(self,placeholder_text="Enter name or select it",width = 175, height = 50)
+        self.button_create = customtkinter.CTkButton(self,width = 250, height = 100, text="Create a GIF", command=self.GifCreation)
+        self.button_edit = customtkinter.CTkButton(self,width = 250, height = 100, text="Edit a GIF", command=self.GifEditor)
+        self.button_exit = customtkinter.CTkButton(self,width = 150, height = 100, text="Exit", command=self.exitmainmenu)
+        self.button_settings = customtkinter.CTkButton(self,width = 50, height = 50, text="settings", command=self.entersettings)
+      
+        self.button_create.place(x=25,y=25)
+        self.button_edit.place(x=25,y=150)
+        self.button_exit.place(x=25,y=275)
+        self.button_settings.place(x=200,y=300)
 
-
-        self.button_filedialog = customtkinter.CTkButton(self,width = 122, height = 20, text="Select from disk", command=self.button_callback)
-        self.button_load = customtkinter.CTkButton(self,width = 122, height = 20, text="Load from name", command=self.button_callback)
-        
-        self.my_frame = MyFrame(master=self, width=300, height=265)
-        
-        self.entry_name.place(x=25,y=25)
-
-        self.label_loadedgifname.place(x=715,y=0)
-        self.label_outputgifname.place(x=715,y=190)
-        self.label_loadedgif.place(x=715,y=25)
-        self.label_outputgif.place(x=715,y=215)
-        
-        
-        self.button_filedialog.place(x=225,y=25)
-        self.button_load.place(x=225,y=53)
-        
-        
-        
-        self.my_frame.place(x=25,y=100)
+        self.buttonplaceholderforart = customtkinter.CTkButton(self,width = 250, height = 250, text="", command=self.button_callback)
+        self.buttonplaceholderforart.place(x=325,y=75)
 
     def button_callback(self):
         print("button clicked")
-app = App()
-app.mainloop()
+    def exitmainmenu(self):
+        print("exiting")
+        self.destroy()
+    
+    #Error messages for main menu
+
+    def MainMenuerror(self,errortext):
+        class MainMenuError(customtkinter.CTkToplevel):
+            def __init__(self):
+                super().__init__()
+                self.geometry("300x200")
+                self.title("Error")
+                        
+                self.error_label = customtkinter.CTkLabel(self, text=errortext, fg_color="transparent")
+                self.error_label.pack (padx=10,pady=25)
+
+                self.error_exit_button = customtkinter.CTkButton(self,width = 100,height = 50, text = "Okay",command=self.exiterror)
+                self.error_exit_button.place(x=100,y=125)                        
+
+
+            def exiterror(self):
+                print("exiting")
+                self.destroy()
+        mainmenuerror = MainMenuError()
+ 
+    #Entering settings
+
+    def entersettings(self):
+        class Settings(customtkinter.CTkToplevel):
+            def __init__(self):
+                super().__init__()
+                global tempval
+                global systemvar
+                self.geometry("600x400")
+                self.title("Settings")
+
+                self.invaliddirectories = []
+
+                self.label_root = customtkinter.CTkLabel(self, text="Root/output folder directory", fg_color="transparent")
+                self.entry_root = customtkinter.CTkEntry(self,placeholder_text=readconfigpath("root_path"),width = 175, height = 50)
+                
+                self.label_imageseq = customtkinter.CTkLabel(self, text="Image sequence folder directory", fg_color="transparent")
+                self.entry_imageseq = customtkinter.CTkEntry(self,placeholder_text=readconfigpath("image_sequence_path"),width = 175, height = 50)
+                self.button_create1 = customtkinter.CTkButton(self,width = 75, height = 20, text="Create", command=self.createdir1)
+                self.dir1_status = False
+
+                self.label_gifedit = customtkinter.CTkLabel(self, text="Directory of GIFs to edit", fg_color="transparent")
+                self.entry_gifedit = customtkinter.CTkEntry(self,placeholder_text=readconfigpath("gif_edit_directory"),width = 175, height = 50)
+                self.button_create3 = customtkinter.CTkButton(self,width = 75, height = 20, text="Create", command=self.createdir3)
+                self.dir3_status = False
+                
+                if systemvar:
+                    self.label_gifsicle = customtkinter.CTkLabel(self, text="Gifsicle state:", fg_color="transparent")
+
+                    self.label_gifsicle.place(x=325,y=60)   
+
+                    if GifsicleLinuxCheck() == 0:
+                        self.label_gifsicle.configure(text="Gifsicle state: Found")
+                    elif GifsicleLinuxCheck() == 1:
+                        self.label_gifsicle.configure(text="Gifsicle state: Not Found")
+                    else:
+                        self.label_gifsicle.configure(text="Gifsicle state: Error, cannot retrieve --version")
+                    
+                else:
+                    self.label_gifsicle = customtkinter.CTkLabel(self, text="Gifsicle directory", fg_color="transparent")
+                    self.entry_gifsicle = customtkinter.CTkEntry(self,placeholder_text=readconfigpath("gifsicle_path"),width = 175, height = 50)
+                    self.button_selectgifsicle = customtkinter.CTkButton(self,width = 75, height = 30, text="Select", command=self.selectgifsicle)
+                    self.label_gifsicle.place(x=325,y=25)   
+                    self.entry_gifsicle.place(x=325,y=50)
+                    self.button_selectgifsicle.place(x=510,y=60)
+                    
+
+                self.label_viddir = customtkinter.CTkLabel(self, text="Videos directory", fg_color="transparent")
+                self.entry_viddir = customtkinter.CTkEntry(self,placeholder_text=readconfigpath("videos_directory"),width = 175, height = 50)
+                self.button_create2 = customtkinter.CTkButton(self,width = 75, height = 20, text="Create", command=self.createdir2)
+                self.dir2_status = False   
+
+                self.label_tempvid = customtkinter.CTkLabel(self, text="Temporary video directory", fg_color="transparent")
+                self.entry_tempvid = customtkinter.CTkEntry(self,placeholder_text=readconfigpath("temporary_video_directory"),width = 175, height = 50)
+                self.button_create4 = customtkinter.CTkButton(self,width = 75, height = 20, text="Create", command=self.createdir4)
+                
+                self.label_apply = customtkinter.CTkLabel(self, text="",fg_color="transparent",justify="center")
+                self.settings_apply_button = customtkinter.CTkButton(self,width = 100,height = 25, text = "Apply dirs",command=self.SubmitDirectoryChanges)
+                self.settings_exit_button = customtkinter.CTkButton(self,width = 100,height = 25, text = "Exit",command=self.exitsettings)                
+                
+                self.button_select1 = customtkinter.CTkButton(self,width = 75, height = 20, text="Select", command=self.selectdir1)
+                self.button_select2 = customtkinter.CTkButton(self,width = 75, height = 20, text="Select", command=self.selectdir2)
+                self.button_select3 = customtkinter.CTkButton(self,width = 75, height = 20, text="Select", command=self.selectdir3)
+                self.button_select4 = customtkinter.CTkButton(self,width = 75, height = 20, text="Select", command=self.selectdir4)
+                self.button_selecthome = customtkinter.CTkButton(self,width = 75, height = 30, text="Select", command=self.selectrootdir)
+                
+
+
+
+                
+                self.button_create1.place(x=210,y=178)
+                self.button_create2.place(x=510,y=178)
+                self.button_create3.place(x=210,y=278)
+                self.button_create4.place(x=510,y=278)
+
+                self.button_select1.place(x=210,y=150)
+                self.button_select2.place(x=510,y=150)
+                self.button_select3.place(x=210,y=250)
+                self.button_select4.place(x=510,y=250)
+                self.button_selecthome.place(x=210,y=60)
+                
+
+                self.label_root.place(x=25,y=25)        
+                self.entry_root.place(x=25,y=50)
+                
+                self.label_imageseq.place(x=25,y=125)
+                self.entry_imageseq.place(x=25,y=150)
+                
+                
+                self.label_gifedit.place(x=25,y=225)
+                self.entry_gifedit.place(x=25,y=250)
+                
+
+                
+                
+                self.label_viddir.place(x=325,y=125)   
+                self.entry_viddir.place(x=325,y=150)
+                
+                
+                self.label_tempvid.place(x=325,y=225)   
+                self.entry_tempvid.place(x=325,y=250)
+                
+
+                self.label_apply.place(x=102,y=325)
+                self.settings_apply_button.place(x=100,y=350)  
+                self.settings_exit_button.place(x=400,y=350)
+              
+
+            def SubmitDirectoryChanges(self):
+                self.aredirectioriesvalid()
+                print(self.invaliddirectories)
+                if len(self.invaliddirectories) == 0:
+                    self.label_apply.configure(text="Changes Applied")
+                else:
+                    if len(self.invaliddirectories) ==1:
+                        self.errormsg(f"{"".join(self.invaliddirectories)} directory path is invalid")
+                    elif len(self.invaliddirectories) >3:
+                        self.invaliddirectoriesline1 = self.invaliddirectories[:3]
+                        self.invaliddirectoriesline2 = self.invaliddirectoriesline2  = [item for item in self.invaliddirectories if item not in self.invaliddirectoriesline1]
+                        self.errormsg(f"These directories are invalid:\n{", ".join(self.invaliddirectoriesline1)},\n{", ".join(self.invaliddirectoriesline2)}.")
+                    else:
+                        self.errormsg(f"These directories are invalid:\n{", ".join(self.invaliddirectories)}.")
+                
+                
+
+
+            def selectdir1(self):
+                self.dir1_path = selectdirectory(parent=self)
+                ChangeConfigValue("image_sequence_path", self.dir1_path)
+                self.entry_imageseq.destroy()
+                self.entry_imageseq = customtkinter.CTkEntry(self, placeholder_text=self.dir1_path, width=175, height=50)
+                self.entry_imageseq.place(x=25, y=150)
+            
+            def selectdir2(self):
+                self.dir2_path = selectdirectory(parent=self)
+                ChangeConfigValue("videos_directory", self.dir2_path)
+                self.entry_viddir.destroy()
+                self.entry_viddir = customtkinter.CTkEntry(self, placeholder_text=self.dir2_path, width=175, height=50)
+                self.entry_viddir.place(x=325, y=150)
+            
+            def selectdir3(self):
+                self.dir3_path = selectdirectory(parent=self)
+                ChangeConfigValue("gif_edit_directory", self.dir3_path)
+                self.entry_gifedit.destroy()
+                self.entry_gifedit = customtkinter.CTkEntry(self, placeholder_text=self.dir3_path, width=175, height=50)
+                self.entry_gifedit.place(x=25, y=250)
+
+            def selectdir4(self):
+                self.dir4_path = selectdirectory(parent=self)
+                ChangeConfigValue("temporary_video_directory", self.dir4_path)
+                self.entry_tempvid.destroy()
+                self.entry_tempvid = customtkinter.CTkEntry(self, placeholder_text=self.dir4_path, width=175, height=50)
+                self.entry_tempvid.place(x=325, y=250)
+
+            def selectrootdir(self):
+                self.root_path = selectdirectory(parent=self)
+                ChangeConfigValue("root_path", self.root_path)
+                self.entry_root.destroy()
+                self.entry_root = customtkinter.CTkEntry(self, placeholder_text=self.root_path, width=175, height=50)
+                self.entry_root.place(x=25, y=50)
+            
+            def selectgifsicle(self):
+                self.gifsicle_path = selectdirectory(parent=self)
+                ChangeConfigValue("gifsicle_path", self.gifsicle_path)
+                self.entry_gifsicle.destroy()
+                self.entry_gifsicle = customtkinter.CTkEntry(self, placeholder_text=self.gifsicle_path, width=175, height=50)
+                self.entry_gifsicle.place(x=325, y=50)
+
+
+            def createdir1(self):
+
+                if self.entry_root.get() == "":
+                    if ispathvalid("root_path"):
+                            print("config ma valid root")
+                            createfolder(readconfigpath("root_path"),"ImageSequence")
+                            self.dir1_path = os.path.join(readconfigpath("root_path"), "ImageSequence")
+                            self.dir1_status = True
+                            ChangeConfigValue("image_sequence_path",self.dir1_path)
+
+                            self.entry_imageseq.destroy()
+                            self.entry_imageseq = customtkinter.CTkEntry(self,placeholder_text=self.dir1_path,width = 175, height = 50)
+                            self.entry_imageseq.place(x=25,y=150)                        
+                    else:
+                        self.errormsg("Fill out Root directory")
+
+                else:
+                    if os.path.isdir(self.entry_root.get()):
+                        print("root = valid")  
+                        createfolder(self.entry_root.get(),"ImageSequence")
+                        self.dir1_path = os.path.join(self.entry_root.get(), "ImageSequence")
+                        self.dir1_status = True
+                        ChangeConfigValue("image_sequence_path",self.dir1_path)
+
+                        self.entry_imageseq.destroy()
+                        self.entry_imageseq = customtkinter.CTkEntry(self,placeholder_text=self.dir1_path,width = 175, height = 50)
+                        self.entry_imageseq.place(x=25,y=150)
+                    else:
+                        print("root = invalid")
+                        self.errormsg("Root entry is invalid")
+
+            def createdir2(self):
+
+                if self.entry_root.get() == "":
+                    if ispathvalid("root_path"):
+                            print("config ma valid root")
+                            createfolder(readconfigpath("root_path"),"Videos")
+                            self.dir2_path = os.path.join(readconfigpath("root_path"), "Videos")
+                            self.dir2_status = True
+                            ChangeConfigValue("videos_directory",self.dir2_path)
+
+                            self.entry_viddir.destroy()
+                            self.entry_viddir = customtkinter.CTkEntry(self,placeholder_text=self.dir2_path,width = 175, height = 50)
+                            self.entry_viddir.place(x=325,y=150)                        
+                    else:
+                        self.errormsg("Fill out Root directory")
+
+                else:
+                    if os.path.isdir(self.entry_root.get()):
+                        print("root = valid")  
+                        createfolder(self.entry_root.get(),"Videos")
+                        self.dir2_path = os.path.join(self.entry_root.get(), "Videos")
+                        self.dir2_status = True
+                        ChangeConfigValue("videos_directory",self.dir2_path)
+
+                        self.entry_viddir.destroy()
+                        self.entry_viddir = customtkinter.CTkEntry(self,placeholder_text=self.dir2_path,width = 175, height = 50)
+                        self.entry_viddir.place(x=325,y=150)
+                    else:
+                        print("root = invalid")
+                        self.errormsg("Root entry is invalid")
+
+            def createdir3(self):
+
+                if self.entry_root.get() == "":
+                    if ispathvalid("root_path"):
+                            print("config ma valid root")
+                            createfolder(readconfigpath("root_path"),"GIFStoEdit")
+                            self.dir3_path = os.path.join(readconfigpath("root_path"), "GIFStoEdit")
+                            self.dir3_status = True
+                            ChangeConfigValue("gif_edit_directory",self.dir3_path)
+
+                            self.entry_gifedit.destroy()
+                            self.entry_gifedit = customtkinter.CTkEntry(self,placeholder_text=self.dir3_path,width = 175, height = 50)
+                            self.entry_gifedit.place(x=25,y=250)                        
+                    else:
+                        self.errormsg("Fill out Root directory")
+
+                else:
+                    if os.path.isdir(self.entry_root.get()):
+                        print("root = valid")  
+                        createfolder(self.entry_root.get(),"GIFStoEdit")
+                        self.dir3_path = os.path.join(self.entry_root.get(), "GIFStoEdit")
+                        self.dir3_status = True
+                        ChangeConfigValue("gif_edit_directory",self.dir3_path)
+
+                        self.entry_gifedit.destroy()
+                        self.entry_gifedit = customtkinter.CTkEntry(self,placeholder_text=self.dir3_path,width = 175, height = 50)
+                        self.entry_gifedit.place(x=25,y=250)
+                    else:
+                        print("root = invalid")
+                        self.errormsg("Root entry is invalid")
+
+            def createdir4(self):
+
+                if self.entry_root.get() == "":
+                    if ispathvalid("root_path"):
+                            print("config ma valid root")
+                            createfolder(readconfigpath("root_path"),"TemporaryDir")
+                            self.dir4_path = os.path.join(readconfigpath("root_path"), "TemporaryDir")
+                            self.dir4_status = True
+                            ChangeConfigValue("temporary_video_directory",self.dir4_path)
+
+                            self.entry_tempvid.destroy()
+                            self.entry_tempvid = customtkinter.CTkEntry(self,placeholder_text=self.dir4_path,width = 175, height = 50)
+                            self.entry_tempvid.place(x=325,y=250)                        
+                    else:
+                        self.errormsg("Fill out Root directory")
+
+                else:
+                    if os.path.isdir(self.entry_root.get()):
+                        print("root = valid")  
+                        createfolder(self.entry_root.get(),"TemporaryVideoDir")
+                        self.dir4_path = os.path.join(self.entry_root.get(), "TemporaryVideoDir")
+                        self.dir4_status = True
+                        ChangeConfigValue("temporary_video_directory",self.dir4_path)
+
+                        self.entry_tempvid.destroy()
+                        self.entry_tempvid = customtkinter.CTkEntry(self,placeholder_text=self.dir4_path,width = 175, height = 50)
+                        self.entry_tempvid.place(x=325,y=250)
+                    else:
+                        print("root = invalid")
+                        self.errormsg("Root entry is invalid")
+
+
+            def aredirectioriesvalid(self):
+                                                        # invalid directories list
+                self.invaliddirectories = []
+                #root
+
+                if self.entry_root.get() == "":
+                    if ispathvalid("root_path"):
+                        print("root_path is valid")
+                    else:
+                        self.invaliddirectories.append("Root")    
+                else:
+                    if os.path.isdir(self.entry_root.get()):
+                        print("root = valid")
+                        self.new_root_path = self.entry_root.get()
+                        ChangeConfigValue("root_path",self.new_root_path)
+                    else:
+                        self.invaliddirectories.append("Root")
+                
+                #gifsicle
+
+                # if self.entry_gifsicle.get() == "":
+                #     if ispathvalid("gifsicle_path"):
+                #         print("gifsicle_path is valid")
+                #     else:
+                #         self.invaliddirectories.append("Gifsicle")    
+                # else:
+                #     if os.path.isdir(self.entry_gifsicle.get()):
+                #         print("gifsicle = valid")
+                #         self.new_gifsicle_path = self.entry_gifsicle.get()
+                #         ChangeConfigValue("gifsicle_path",self.new_gifsicle_path)
+                #     else:
+                #         self.invaliddirectories.append("Gifsicle")
+                
+                #Image Sequence
+
+                # if self.entry_imageseq.get() == "":
+                #     if ispathvalid("image_sequence_path"):
+                #         print("Imageseq correct config path")
+                #     else:
+                #         self.invaliddirectories.append("Image Sequence")
+                # else:
+                #     if os.path.isdir(self.entry_imageseq.get()):
+                #         print("imageseq correct entry path")
+                #         ChangeConfigValue("image_sequence_path",self.entry_imageseq.get())
+                #     else:
+                #         self.invaliddirectories.append("Image Sequence")
+                
+                #video
+
+                # if self.entry_viddir.get() == "":
+                #     if ispathvalid("videos_directory"):
+                #         print("viddir correct config path")
+                #     else:
+                #         self.invaliddirectories.append("Video")
+                # else:
+                #     if os.path.isdir(self.entry_viddir.get()):
+                #         print("viddir correct entry path")
+                #         ChangeConfigValue("videos_directory",self.entry_viddir.get())
+                #     else:
+                #         self.invaliddirectories.append("Video")
+                
+                #gif edit
+                
+                # if self.entry_gifedit.get() == "":
+                #     if ispathvalid("gif_edit_directory"):
+                #         print("gifedit correct config path")
+                #     else:
+                #         self.invaliddirectories.append("GIFS to edit")
+                # else:
+                #     if os.path.isdir(self.entry_gifedit.get()):
+                #         print("gifedit correct entry path")
+                #         ChangeConfigValue("gif_edit_directory",self.entry_gifedit.get())
+                #     else:
+                #         self.invaliddirectories.append("GIFS to edit")
+                
+                #temporary video
+
+                if self.entry_tempvid.get() == "":
+                    if ispathvalid("temporary_video_directory"):
+                        print("tempvid correct config path")
+                    else:
+                        self.invaliddirectories.append("Temporary video")
+                else:
+                    if os.path.isdir(self.entry_tempvid.get()):
+                        print("tempvid correct entry path")
+                        ChangeConfigValue("temporary_video_directory",self.entry_tempvid.get())
+                    else:
+                        self.invaliddirectories.append("Temporary video")
+
+
+            def exitsettings(self):
+                print("exiting")
+                self.destroy()
+
+            def getentry(self):
+                print(self.entry_root.get())
+
+
+            def button_callback(self):
+                print("button clicked")
+   
+            #Popup error message
+
+            def errormsg(self,errortext):
+                class ErrorMessage(customtkinter.CTkToplevel):
+                    def __init__(self):
+                        super().__init__()
+                        self.geometry("300x200")
+                        self.title("Error")
+                        
+                        self.error_label = customtkinter.CTkLabel(self, text=errortext, fg_color="transparent")
+                        self.error_label.pack (padx=10,pady=25)
+
+                        self.error_exit_button = customtkinter.CTkButton(self,width = 100,height = 50, text = "Okay",command=self.exiterror)
+                        self.error_exit_button.place(x=100,y=125)                        
+
+
+                    def exiterror(self):
+                        print("exiting")
+                        self.destroy()
+
+
+                errormessage = ErrorMessage()            
+
+        settings = Settings()
+
+    #entering gif creation
+
+    def GifCreation(self):
+        if CheckAllConfigPaths2(["videos_directory","image_sequence_path","gifsicle_path","gif_edit_directory"]):
+            if CheckAllConfigPaths() == False:
+                tempval = True
+            class GifCreation(customtkinter.CTkToplevel):
+                def __init__(self):
+                    super().__init__()
+                    global tempval
+
+                    
+                    self.geometry("600x400")
+
+                    self.button_firstloadlay1 = customtkinter.CTkButton(self,width = 550, height = 160, text="Convert Videos", command=self.layout1 )
+                    self.button_firstloadlay1.place(x=25,y=25)
+                    self.button_firstloadlay2 = customtkinter.CTkButton(self,width = 550, height = 160, text="Convert Image Sequences", command=self.layout2 )
+                    self.button_firstloadlay2.place(x=25,y=215)                    
+
+                # LAYOUT 1
+
+                def layout1(self):
+                    global tempval
+                    self.button_firstloadlay1.destroy()
+                    self.button_firstloadlay2.destroy()
+
+                    self.title("GIF creation")
+
+                    self.label_name = customtkinter.CTkLabel(self, text="Video Name", fg_color="transparent")
+                    self.label_percentage = customtkinter.CTkLabel(self, text=(r"% frames kept"), fg_color="transparent")
+                    self.label_msvid = customtkinter.CTkLabel(self, text="Frame delay in ms", fg_color="transparent")
+                    self.label_fpsframes = customtkinter.CTkLabel(self, text="", fg_color="transparent")
+                    self.label_msframes = customtkinter.CTkLabel(self, text="", fg_color="transparent")
+                    self.label_vidloaded = customtkinter.CTkLabel(self,text="",height=125,width=125,fg_color="gray20")                    
+                    self.label_vidgif = customtkinter.CTkLabel(self,text="",height=125,width=125,fg_color="gray20",)
+
+                    self.entry_percentage = customtkinter.CTkEntry(self,placeholder_text="0.1-1",width = 50, height = 50)
+                    self.entry_msvid = customtkinter.CTkEntry(self,placeholder_text="ms",width = 50, height = 50)
+                    self.entry_name = customtkinter.CTkEntry(self,placeholder_text="Enter the name of the video or select it",width = 300, height = 50)
+
+                    self.button_layout2 = customtkinter.CTkButton(self,width = 100, height = 50, text="Change Mode", command=self.switchtolay2)
+                    self.button_convert = customtkinter.CTkButton(self,width = 100, height = 50, text="Convert", command=self.creategiffromvideo)
+                    self.button_exitvid = customtkinter.CTkButton(self,width = 100, height = 50, text="Exit", command=self.exitcrt)
+                    self.button_filedialog = customtkinter.CTkButton(self,width = 75, height = 20, text="Select", command=self.select_video)
+                    if tempval:
+                        self.button_load = customtkinter.CTkButton(self,width = 75, height = 20, text="Load", state = "disabled", command=self.start_video)
+                    else:
+                        self.button_load = customtkinter.CTkButton(self,width = 75, height = 20, text="Load", command=self.start_video)    
+                    
+                            
+
+                    self.label_name.place(x=25,y=25)   
+                    self.label_percentage.place(x=73,y=125)
+                    self.label_msvid.place(x=182,y=125)
+                    self.label_fpsframes.place(x=450,y=25)
+                    self.label_msframes.place(x=450,y=225)
+                    self.label_vidloaded.place(x=450,y=50)                    
+                    self.label_vidgif.place(x=450,y=250)
+
+                    self.entry_percentage.place(x=91,y=150)
+                    self.entry_msvid.place(x=207,y=150)
+                    self.entry_name.place(x=25,y=50)
+
+                    self.button_convert.place(x=25,y=250)
+                    self.button_load.place(x=335,y=78)
+                    self.button_filedialog.place(x=335,y=50)
+                    self.button_layout2.place(x=150,y=325)
+                    self.button_exitvid.place(x=25,y=325)
+
+                    
+
+
+                    self.isvideoloaded = False
+                    self.vidconvertvar = False
+                    self.vidsavebuttons = False
+
+
+
+                    self.cap = None
+                    self.playing = False
+
+                    self.gif_frames = []
+                    self.current_frame = 0
+                    self.gif_running = False
+
+                def destroyvideogui(self):
+                    self.stopgifvidplayback()
+                    self.button_firstloadlay1.destroy()
+                    self.label_name.destroy()
+                    self.label_percentage.destroy()
+                    self.label_msvid.destroy()
+                    self.label_fpsframes.destroy()
+                    self.label_msframes.destroy()
+                    self.label_vidgif.destroy()
+                    self.entry_percentage.destroy()
+                    self.entry_msvid.destroy()
+                    self.button_convert.destroy()
+                    self.button_exitvid.destroy()
+                    self.entry_name.destroy()
+                    self.label_vidloaded.destroy()
+                    self.button_load.destroy()
+                    self.button_layout2.destroy()
+                    self.button_filedialog.destroy()
+                    if self.vidsavebuttons == True:
+                        self.destroyvidsavebuttons
+
+                def destroyisgui(self):
+                    self.label_isext.destroy()
+                    self.label_isms.destroy()
+                    self.label_isloop.destroy()
+                    self.label_isgifsaved.destroy()
+                    self.label_isloadedgif.destroy()
+                    self.entry_isext.destroy()
+                    self.entry_isms.destroy()
+                    self.button_exitis.destroy()
+                    self.button_layout1.destroy()
+                    self.button_isloopinf.destroy()
+                    self.button_isloopamnt.destroy()
+                    self.label_ismsframes.destroy()
+
+                    if self.loopspressed == 1:
+                        self.button_isgoback.destroy() 
+                        self.button_isconvert.destroy()
+                    if self.customloopsstate == True:
+                        self.entry_isloopamount.destroy()
+                    if self.isconverton == True:
+                        self.entry_isgifname.destroy()
+                        self.button_issave.destroy()
+
+                def switchtolay2(self):
+                    self.destroyvideogui()
+                    self.layout2()
+
+                def switchtolay1(self):
+                    self.destroyisgui()
+                    self.layout1()
+
+                def start_video(self):
+                    if self.entry_name.get() == "":
+                        self.errormsgcrt("Input the video name")
+                    elif os.path.exists(os.path.join(readconfigpath("videos_directory"),(self.entry_name.get()+".mp4"))):                                     
+                        if self.vidconvertvar == True:
+                            self.destroyvidsavebuttons()
+                        self.label_msframes.configure(text="")
+                        self.stopgifvidplayback()
+                        print(os.path.join(readconfigpath("videos_directory"),(self.entry_name.get()+".mp4")))
+                        self.cap = cv2.VideoCapture(os.path.join(readconfigpath("videos_directory"),(self.entry_name.get()+".mp4")))
+                        self.playing = True
+                        self.update_frame()
+                        self.videogif_path = os.path.join(readconfigpath("videos_directory"),(self.entry_name.get()+".mp4"))
+                        print(self.videogif_path)
+                        self.isvideoloaded = True
+                        self.loaded_vid_framerate = check_video_fps(os.path.join(readconfigpath("videos_directory"),(self.entry_name.get()+".mp4")))
+                        self.label_fpsframes.configure(text=((f"FPS: {int(self.loaded_vid_framerate)}")))
+                    else:
+                        self.errormsgcrt("Input a valid video name")
+
+                def select_video(self):                                 
+                        if self.vidconvertvar == True:
+                            self.destroyvidsavebuttons()
+                        self.selectedvideo = selectfilemp4(parent=self)
+                        self.label_msframes.configure(text="")
+                        self.stopgifvidplayback()
+                        print(self.selectedvideo)
+                        self.cap = cv2.VideoCapture(self.selectedvideo)
+                        self.playing = True
+                        self.update_frame()
+                        self.videogif_path = self.selectedvideo
+                        print(self.videogif_path)
+                        self.isvideoloaded = True
+                        self.loaded_vid_framerate = check_video_fps(self.selectedvideo)
+                        self.label_fpsframes.configure(text=((f"FPS: {int(self.loaded_vid_framerate)}")))
+
+                def update_frame(self):
+                    if self.playing and self.cap is not None:
+                        ret, frame = self.cap.read()
+                        if ret:
+                            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                            img = Image.fromarray(frame).convert("RGBA")
+                            img.thumbnail((125, 125))
+                            background = Image.new("RGBA", (125, 125), (0, 0, 0, 0))
+                            x = (125 - img.width) // 2
+                            y = (125 - img.height) // 2
+                            background.paste(img, (x, y), img)
+                            self.current_ctk_img = CTkImage(light_image=background, size=(125, 125))
+                            self.label_vidloaded.configure(image=self.current_ctk_img)
+                        else:
+                            self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                        self.after(33, self.update_frame)
+
+                def button_callback(self):
+                    print("button clicked")
+                
+                def arevidfieldsvalid(self):
+                    if self.entry_msvid.get() == "" or self.entry_percentage.get() == "":
+                        print(2)
+                        return 2
+                    elif 0< float(self.entry_percentage.get())<1 and int(self.entry_msvid.get())>0:
+                        print(1)
+                        return 1
+                    elif float(self.entry_percentage.get()) < 0 or float(self.entry_percentage.get()) > 1:
+                        print(3)
+                        return 3
+                    elif int(self.entry_msvid.get()) <=0:
+                        print(4)
+                        return 4
+                    else:
+                        print(5)
+                        return 5
+
+                def creategiffromvideo(self):
+                    self.vidconvertvar = True
+                    if self.isvideoloaded == False and self.arevidfieldsvalid() > 1:
+                        self.errormsgcrt("Please load the video,\n then fill out the fields correctly")
+                    elif self.isvideoloaded == False:
+                        self.errormsgcrt("Please load the video first")
+                    elif self.arevidfieldsvalid() == 2:
+                        self.errormsgcrt("Please input values into the fields")
+                    elif self.arevidfieldsvalid() >2:
+                        self.errormsgcrt("Please fill out the fields correctly")
+                    elif self.isvideoloaded == True and self.arevidfieldsvalid() == 1:
+                        extract_frames_then_gif(self.videogif_path,float(self.entry_percentage.get()),int(self.entry_msvid.get()))
+                        self.vidgifFrames = (len([name for name in os.listdir(readconfigpath("temporary_video_directory")) if os.path.isfile(os.path.join(readconfigpath("temporary_video_directory"), name))])) - 1
+                        self.play_gif(os.path.join(readconfigpath("temporary_video_directory"),"temp_gif.gif"))
+                        self.label_msframes.configure(text=(f"Frames: {self.vidgifFrames}, ms: {self.entry_msvid.get()}"))
+                        self.entry_vidsavename = customtkinter.CTkEntry(self,placeholder_text="Enter Name",width = 100, height = 50)
+                        self.button_savevid = customtkinter.CTkButton(self,width = 100, height = 50, text="Save", command=self.SavingVidGif)
+                        self.label_vidsaved = customtkinter.CTkLabel(self, text="", fg_color="transparent")
+                        self.entry_vidsavename.place(x=300,y=250)
+                        self.button_savevid.place(x=300,y=325)
+                        self.label_vidsaved.place(x=293,y=375)
+                        self.vidsavebuttons = True
+                    
+
+                def play_gif(self, gif_path):
+                    gif = Image.open(gif_path)
+                    self.gif_frames = []
+                    self.current_frame = 0
+                    self.gif_running = True
+                    self.gif_duration = gif.info.get("duration", 100)
+
+                    for frame in ImageSequence.Iterator(gif):
+                        frame = frame.convert("RGBA")
+                        frame.thumbnail((125, 125))
+                        background = Image.new("RGBA", (125, 125), (0, 0, 0, 0))
+                        x = (125 - frame.width) // 2
+                        y = (125 - frame.height) // 2
+                        background.paste(frame, (x, y), frame)
+                        self.gif_frames.append(ImageTk.PhotoImage(background))
+
+                    def animate():                      
+                        if self.gif_running and self.gif_frames:
+                            self.label_vidgif.configure(image=self.gif_frames[self.current_frame])
+                            self.current_frame = (self.current_frame + 1) % len(self.gif_frames)
+                            self.after(self.gif_duration, animate)
+
+                    animate()
+
+                def stopgifvidplayback(self):
+                    self.gif_running = False
+                    self.label_vidgif.configure(image="")
+                    self.playing = False
+                    self.label_vidloaded.configure(image="")
+
+                def SavingVidGif(self):
+                    if self.entry_vidsavename.get() == "":
+                        self.label_vidsaved.configure(text="Please input a name")
+                    elif os.path.exists(os.path.join(readconfigpath("root_path"),(self.entry_vidsavename.get()+".gif"))):
+                        print("Ten plik już istnieje")
+                        
+                        self.label_vidsaved.configure(text="GIF already exists")
+                        
+                    else:
+                        os.rename(os.path.join(readconfigpath("temporary_video_directory"), "temp_gif.gif"),os.path.join(readconfigpath("root_path"), (self.entry_vidsavename.get()+".gif")))
+                        czyszczenie_plikow_temp(readconfigpath("temporary_video_directory"))
+                        self.destroyvidsavebuttons()
+                        self.label_msframes.configure(text="")
+                        self.label_fpsframes.configure(text="")
+                        self.stopgifvidplayback()
+
+                def destroyvidsavebuttons(self):
+                        self.entry_vidsavename.destroy()
+                        self.button_savevid.destroy()
+                        self.label_vidsaved.destroy()
+
+                # LAYOUT 2
+
+                def layout2(self):
+                    global tempval
+                    self.customloopsstate = False
+                    self.loopspressed = 0
+                    self.isconverton = False
+                    self.filedialogstate = False
+
+                    self.button_firstloadlay1.destroy()
+                    self.button_firstloadlay2.destroy()
+
+                    self.label_state = customtkinter.CTkLabel(self, text="Current State: Config Path", fg_color="transparent")
+                    self.button_selectis = customtkinter.CTkButton(self,width = 100, height = 25, text="Select a Dir", command=self.selecteddirbutton)
+                    self.button_configdir = customtkinter.CTkButton(self,width = 100, height = 25, text="Use Config", command=self.configdir)
+
+                    self.label_state.place(x=25,y=10)
+                    self.button_configdir.place(x=25,y=45)
+                    self.button_selectis.place(x=175,y=45)
+
+
+                    if tempval:
+                        self.label_state.configure(text="Config Path invalid/missing. Select a directory")
+                        
+                        self.button_configdir.configure(state="disabled")
+
+
+
+                    self.label_isext = customtkinter.CTkLabel(self, text="File extension", fg_color="transparent")
+                    self.label_isms = customtkinter.CTkLabel(self, text="Frame delay in ms", fg_color="transparent")
+                    self.label_isloop = customtkinter.CTkLabel(self, text="Amount of loops", fg_color="transparent")
+                    self.label_isgifsaved = customtkinter.CTkLabel(self, text="", fg_color="transparent")
+                    self.label_ismsframes = customtkinter.CTkLabel(self, text="", fg_color="transparent")
+                    self.label_isloadedgif = customtkinter.CTkLabel(self,text="",height=200,width=200,fg_color="gray20",)
+
+                    self.entry_isext = customtkinter.CTkEntry(self,placeholder_text=".jpg/.jpeg/png",width = 100, height = 50)
+                    self.entry_isms = customtkinter.CTkEntry(self,placeholder_text="ms",width = 50, height = 50)
+
+                    self.button_exitis = customtkinter.CTkButton(self,width = 100, height = 50, text="Exit", command=self.exitcrt)
+                    self.button_layout1 = customtkinter.CTkButton(self,width = 100, height = 50, text="Change Mode", command=self.switchtolay1)
+                    self.button_isloopinf = customtkinter.CTkButton(self,width = 100, height = 25, text="∞", command=self.infiniteloops)
+                    self.button_isloopamnt = customtkinter.CTkButton(self,width = 100, height = 25, text="Custom", command=self.customloops)
+                    
+                    self.button_isconvert = customtkinter.CTkButton(self,width = 100, height = 50, text="Convert", command=self.isconvertbutton)
+                    self.button_isconvert.place(x=100,y=250)    
+
+
+                    self.label_isext.place(x=35,y=100)
+                    self.label_isms.place(x=175,y=100)
+                    # self.label_isloop.place(x=100,y=125)
+                    self.label_isloadedgif.place(x=375,y=25)
+                    self.label_isgifsaved.place(x=425,y=375)
+                    self.label_ismsframes.place(x=375,y=0)
+
+                    self.entry_isext.place(x=25,y=125)
+                    self.entry_isms.place(x=200,y=125)              
+
+                    self.button_exitis.place(x=25,y=325)
+                    self.button_layout1.place(x=150,y=325)
+                    # self.button_isloopinf.place(x=25,y=150)
+                    # self.button_isloopamnt.place(x=175,y=150)
+
+                    self.cap = None
+                    self.playing = False
+
+                    self.gif_frames = []
+                    self.current_frame = 0
+                    self.gif_running = False
+                
+                def selecteddirbutton(self):
+                    self.isfiledir = selectdirectory(parent=self)
+                    self.filedialogstate = True
+                    self.label_state.configure(text="Current State: Selected directory")
+
+                def configdir(self):
+                    self.filedialogstate = False
+                    self.label_state.configure(text="Current State: Config Path")
+
+                def infiniteloops(self):
+
+                    if self.iserrorcheck() == 1:
+                        if self.hasfilewithextension(self.entry_isext.get()):
+                            print("No custom loops!")
+                            self.customloopsstate = False
+                            self.loopspressed = 1
+
+                            self.button_isloopinf.configure(state="disabled")
+                            self.button_isloopamnt.configure(state="disabled")                   
+
+                            self.button_isgoback = customtkinter.CTkButton(self,width = 100, height = 25, text="Go Back", command=self.goback)
+                            self.button_isgoback.place(x=100,y=200)
+
+                            self.button_isconvert = customtkinter.CTkButton(self,width = 100, height = 50, text="Convert", command=self.isconvertbutton)
+                            self.button_isconvert.place(x=100,y=250)      
+                        else:
+                            self.errormsgcrt("There are no files with this extension\n in the Image Sequence directory")
+                    elif self.iserrorcheck() == 2:
+                        self.errormsgcrt("Please fill out both fields")
+                    elif self.iserrorcheck() >2:
+                        self.errormsgcrt("Please input valid values")                                  
+
+                def customloops(self):
+                    if self.iserrorcheck() == 1:
+                        if self.hasfilewithextension(self.entry_isext.get()):
+                            print("custom loops!")
+                            self.customloopsstate = True
+                            self.loopspressed = 1
+
+                            self.button_isloopinf.configure(state="disabled")
+                            self.button_isloopamnt.configure(state="disabled")
+
+
+                            self.entry_isloopamount = customtkinter.CTkEntry(self,placeholder_text="Enter amount",width = 100, height = 25)
+                            self.button_isgoback = customtkinter.CTkButton(self,width = 100, height = 25, text="Go Back", command=self.goback)
+
+                            self.entry_isloopamount.place(x=175,y=200)
+                            self.button_isgoback.place(x=25,y=200)
+
+                            self.button_isconvert = customtkinter.CTkButton(self,width = 100, height = 50, text="Convert", command=self.isconvertbutton)
+                            self.button_isconvert.place(x=100,y=250)
+                        else:
+                            self.errormsgcrt("There are no files with this extension\n in the Image Sequence directory")
+                    elif self.iserrorcheck() == 2:
+                        self.errormsgcrt("Please fill out both fields")
+                    elif self.iserrorcheck() >2:
+                        self.errormsgcrt("Please input valid values")
+
+
+                def goback(self):
+                    if self.customloopsstate == False:
+                        self.button_isloopinf.configure(state="normal")
+                        self.button_isloopamnt.configure(state="normal")
+                        self.button_isgoback.destroy()
+                        self.button_isconvert.destroy()
+                        self.stopisgifplayback()
+                    elif self.customloopsstate == True:
+                        self.button_isloopinf.configure(state="normal")
+                        self.button_isloopamnt.configure(state="normal")
+                        self.button_isgoback.destroy()
+                        self.entry_isloopamount.destroy()                        
+                        self.button_isconvert.destroy()
+                        self.stopisgifplayback()
+                    if self.isconverton == True:
+                        self.entry_isgifname.destroy()
+                        self.button_issave.destroy()
+                        self.stopisgifplayback()
+
+                def isconvertbutton(self):
+                    print("test")
+                    print (f"loopy to :{self.customloopcheck()}")
+                    if self.customloopcheck() in [1,11]:
+                        if self.iserrorcheck() == 1:
+                            if self.hasfilewithextension(self.entry_isext.get()):                              
+                                
+                                
+                                if self.customloopsstate == False:
+                                    self.entry_isloopamount = customtkinter.CTkEntry(self,placeholder_text="Enter amount",width = 100, height = 25)
+                                self.isconverton = True
+                                self.entry_isgifname = customtkinter.CTkEntry(self,placeholder_text="Enter the name",width = 200, height = 50)
+                                self.button_issave = customtkinter.CTkButton(self,width = 100, height = 50, text="Save", command=self.SavingISGif)
+                                self.entry_isgifname.place(x=375,y=250) 
+                                self.button_issave.place(x=425,y=325)
+
+                                self.isext = self.entry_isext.get()
+                                self.isms = int(self.entry_isms.get())
+                                if self.filedialogstate == True:
+                                    self.ispath = self.isfiledir
+                                else:
+                                    self.ispath = readconfigpath("image_sequence_path")
+                                self.isimageoutpath = os.path.join(readconfigpath("image_sequence_path"),"temp_gif.gif")
+                                self.isloopamount = self.entry_isloopamount.get()
+                                self.label_isloadedgif.configure(image="")
+                                deleteafile(self.isimageoutpath)
+                                print(f"ilość loopów{self.isloopamount}")
+                                self.vidisFrames = (len([name for name in os.listdir(readconfigpath("image_sequence_path")) if os.path.isfile(os.path.join(readconfigpath("image_sequence_path"), name))]))
+                                self.label_ismsframes.configure(text=(f"Frames: {self.vidisFrames}, ms: {self.entry_isms.get()}"))
+
+                                if self.customloopsstate == False:
+                                    self.make_isgif(self.ispath,self.isimageoutpath,self.isext,self.isms,0)
+                                    self.isplay_gif(self.isimageoutpath)  
+                                elif self.customloopsstate == True:
+                                    self.make_isgif(self.ispath,self.isimageoutpath,self.isext,self.isms,self.entry_isloopamount.get())
+                                    self.isplay_gif(self.isimageoutpath)                      
+                            else:
+                                self.errormsgcrt("There are no files with this extension\n in the selected directory")
+                        elif self.iserrorcheck() == 2:
+                            self.errormsgcrt("Please fill out both fields")
+                        elif self.iserrorcheck() >2:
+                            self.errormsgcrt("Please input valid values")   
+
+
+
+                    elif self.iserrorcheck() == 2 or self.customloopcheck == 2:
+                        self.errormsgcrt("Please input values into fields")
+
+                def make_isgif(self, frame_folder, image_file_path, image_sequence_ext, delay_frame, loops):
+                    # Sort files numerically if filenames are numbers, otherwise alphabetically
+                    image_files = sorted(
+                        glob.glob(f"{frame_folder}/*{image_sequence_ext}"),
+                        key=lambda x: int(os.path.splitext(os.path.basename(x))[0]) if os.path.splitext(os.path.basename(x))[0].isdigit() else x
+                    )
+                    frames = [Image.open(image).convert("RGBA") for image in image_files]
+                    if not frames:
+                        raise ValueError("No frames found.")
+                    # Ensure all frames are the same size
+                    size = frames[0].size
+                    frames = [frame.resize(size) for frame in frames]
+                    frame_one = frames[0]
+                    frame_one.save(
+                        fp=image_file_path,
+                        format="GIF",
+                        append_images=frames[1:],  # Only append the rest
+                        save_all=True,
+                        duration=delay_frame,
+                        loop=int(loops)
+                    )
+
+                def iserrorcheck(self):
+                    if self.entry_isext.get() == "" or self.entry_isms.get() == "":
+                        print(2)
+                        return 2
+                    elif self.entry_isext.get() not in [".jpg",".jpeg",".png"]:
+                        print(3)
+                        return 3
+                    elif self.entry_isms.get().isnumeric() == False:
+                        print(4)
+                        return 4
+                    elif self.entry_isext.get() in [".jpg",".jpeg",".png"] and self.entry_isms.get().isnumeric:
+                        print(1)
+                        return 1
+                    else: 
+                        print(5)
+                        return 5
+                
+                def customloopcheck(self):
+                    if self.customloopsstate == True:
+                        if self.entry_isloopamount.get() == "":
+                            print(2222)
+                            return 2                            
+
+                        elif self.entry_isloopamount.get().isnumeric() == False:
+                            print(3)
+                            return 3                        
+
+                        elif self.entry_isloopamount.get().isnumeric():
+                            print(1)
+                            return 1
+                    elif self.customloopsstate == False:
+                        print(11)
+                        return 11
+                    
+                def hasfilewithextension(self,does_exist_extension):
+                    if self.isfiledir == False:  
+                        for root, dirs, files in os.walk(readconfigpath("image_sequence_path")):
+                            for file in files:
+                                if file.endswith(does_exist_extension):
+                                    return True
+                        return False
+                    else:
+                        for root, dirs, files in os.walk(self.isfiledir):
+                            for file in files:
+                                if file.endswith(does_exist_extension):
+                                    return True
+                        return False
+
+                def isplay_gif(self, gif_path):
+                    gif = Image.open(gif_path)
+                    self.gif_frames = []
+                    self.current_frame = 0
+                    self.gif_running = True
+                    self.gif_duration = gif.info.get("duration", 100)
+
+                    for frame in ImageSequence.Iterator(gif):
+                        frame = frame.convert("RGBA")
+                        frame.thumbnail((200, 200))
+                        background = Image.new("RGBA", (200, 200), (0, 0, 0, 0))
+                        x = (200 - frame.width) // 2
+                        y = (200 - frame.height) // 2
+                        background.paste(frame, (x, y), frame)
+                        self.gif_frames.append(ImageTk.PhotoImage(background))
+
+                    def animate():                      
+                        if self.gif_running and self.gif_frames:
+                            self.label_isloadedgif.configure(image=self.gif_frames[self.current_frame])
+                            self.current_frame = (self.current_frame + 1) % len(self.gif_frames)
+                            self.after(self.gif_duration, animate)
+
+
+
+                    animate()
+
+
+                def SavingISGif(self):
+                    if self.entry_isgifname.get() == "":
+                        self.label_isgifsaved.configure(text="Please input a name")
+                    elif os.path.exists(os.path.join(readconfigpath("root_path"),(self.entry_isgifname.get()+".gif"))):
+                        print("Ten plik już istnieje")
+                        self.label_isgifsaved.configure(text="GIF already exists")   
+                    else:
+                        os.rename(os.path.join(readconfigpath("image_sequence_path"), "temp_gif.gif"),os.path.join(readconfigpath("root_path"), (self.entry_isgifname.get()+".gif")))
+                        czyszczenie_plikow_temp(readconfigpath("temporary_video_directory"))
+                        self.destroyissavebuttons()
+                        self.stopisgifplayback()
+
+                def stopisgifplayback(self):
+                    self.label_ismsframes.configure(text="")
+                    self.gif_running = False
+                    self.label_isloadedgif.configure(image="")
+
+                def destroyissavebuttons(self):
+                    self.entry_isgifname.destroy()
+                    self.button_issave.destroy()
+                    self.label_isgifsaved.destroy()
+
+                # ERROR MESSAGE
+
+                def errormsgcrt(self,errortext):
+                    class ErrorMessageCrt(customtkinter.CTkToplevel):
+                        def __init__(self):
+                            super().__init__()
+                            self.geometry("300x200")
+                            self.title("Error")
+                            
+                            self.error_label = customtkinter.CTkLabel(self, text=errortext, fg_color="transparent")
+                            self.error_label.pack (padx=10,pady=25)
+
+                            self.error_exit_button = customtkinter.CTkButton(self,width = 100,height = 50, text = "Okay",command=self.exiterror)
+                            self.error_exit_button.place(x=100,y=125)                        
+                        def exiterror(self):
+                            print("exiting")
+                            self.destroy()
+                    errormessagecrt = ErrorMessageCrt()  
+
+                # EXIT BUTTON
+
+                def exitcrt(self):
+                    print("exiting")
+                    self.destroy()                
+
+            gifcreation = GifCreation()
+        else:
+            self.MainMenuerror("Please enter the settings and correctly configure:\nRooth path and the Temporary path")
+
+    def GifEditor(self):
+        if CheckAllConfigPaths():
+            
+            class MyFrame(customtkinter.CTkScrollableFrame):
+                def __init__(self, master, parent, **kwargs):
+                    super().__init__(master, **kwargs)
+                    self.parent = parent  # Reference to GifEdit
+                    self.button_optimize = customtkinter.CTkButton(self,width=298,text="Optimize",command=self.parent.OptimizeButton)
+                    self.button_optimize.grid(row=0, column=0, padx=0)
+                    self.button_accell = customtkinter.CTkButton(self, width = 298,text = "Change speed", command = self.parent.SpeedButton)
+                    self.button_accell.grid(row=1, column=0, pady=6)
+                    self.button_text = customtkinter.CTkButton(self, width = 298,text = "Add text", command = self.parent.AddTextButton)
+                    self.button_text.grid(row=2, column=0, padx=0)
+                    # self.button4 = customtkinter.CTkButton(self, width = 248)
+                    # self.button4.grid(row=3, column=0, pady=6)
+                    # self.button5 = customtkinter.CTkButton(self, width = 248)
+                    # self.button5.grid(row=4, column=0, padx=0)
+                
+            
+            
+            class GifEdit(customtkinter.CTkToplevel):
+                def __init__(self):
+                    super().__init__()
+                    global conflict
+                    self.geometry("900x400")
+                    self.title("GIF Editor")
+                    self.resizable(False,False)
+                    self.lastoperation = ""
+                    self.savebuttons = False
+                    
+                    self.loadedgifpath = ""
+                    self.outputgifpath = ""
+                    self.gifeditfound = False
+                    self.rootfound = False
+                    self.founderrors = []
+
+                    self.label_loadedgifname = customtkinter.CTkLabel(self,text="",fg_color="transparent")
+                    self.label_loadedgif = customtkinter.CTkLabel(self,text="",height=200,width=200,fg_color="gray20")
+
+                    self.entry_name = customtkinter.CTkEntry(self,placeholder_text="Enter name or select it",width = 175, height = 50)
+
+
+                    self.button_filedialog = customtkinter.CTkButton(self,width = 122, height = 20, text="Select from disk", command=self.select_gif)
+                    self.button_load = customtkinter.CTkButton(self,width = 122, height = 20, text="Load from name", command=self.FindFromName)
+                    
+                    self.my_frame = MyFrame(master=self,parent=self, width=300, height=265)
+                    
+                    self.entry_name.place(x=25,y=25)
+
+                    self.label_loadedgifname.place(x=675,y=75)
+
+                    self.label_loadedgif.place(x=675,y=100)
+
+                    
+                    
+                    self.button_filedialog.place(x=225,y=25)
+                    self.button_load.place(x=225,y=53)
+                    
+                    
+                    
+                    self.my_frame.place(x=25,y=100)
+
+                    self.gifedit_animation_id = None
+                    self.gifeditout_animation_id = None
+
+
+                def OptimizeButton(self):
+                    if self.GifsicleCheck():
+                        self.cleanbuttons()
+                        self.lastoperation = "Optimize"
+                        self.label_optimizelossy = customtkinter.CTkLabel(self, text="Lossy optimization", fg_color="transparent")
+                        
+                        self.entry_optimizelossy = customtkinter.CTkEntry(self, placeholder_text="Enter quality (0-100)", width=275, height=50)
+                        
+                        self.button_optimize = customtkinter.CTkButton(self, width=275, text="Optimize", command=self.Optimalization)
+
+                        self.label_optimizelossy.place(x=375,y=0)
+                        self.entry_optimizelossy.place(x=375,y=25)
+                        self.button_optimize.place(x=375,y=185)
+
+                def Optimalization(self):
+                    if self.loadedgifpath == "":
+                        self.errormsgedt("Please load a GIF first")
+                    elif not self.entry_optimizelossy.get().isnumeric():
+                        self.errormsgedt("Please input an integer number\ninto the quality field")
+                    elif not 0 <int(self.entry_optimizelossy.get()) < 101:
+                        self.errormsgedt("Please input a number\nbetween 0 and 100")
+                    else:
+                        if system == "Linux":
+                            self.outputgifpath = os.path.join(readconfigpath("temporary_video_directory"), "temp_gif_out.gif")
+                            self.optpercentage = "--lossy=" + self.entry_optimizelossy.get()
+                            subprocess.run(["gifsicle", "-O2", self.optpercentage, '--colors=256', self.loadedgifpath, "-o", self.outputgifpath],stdout=subprocess.DEVNULL,
+                            stderr=subprocess.DEVNULL)
+                            self.stopgifvidplayback()
+                            self.play_gifedit(self.outputgifpath)
+                            self.label_loadedgifname.configure(text="Output GIF:")
+                            self.SaveButtons()
+
+                def SpeedButton(self):
+                    if self.GifsicleCheck():
+                        self.cleanbuttons()
+                        self.lastoperation = "Speed"
+                        self.label_speed = customtkinter.CTkLabel(self, text="Enter the delay between frames", fg_color="transparent")
+
+                        self.entry_speed = customtkinter.CTkEntry(self, placeholder_text="Enter the frame delay ", width=275, height=50)
+
+                        self.button_optimize = customtkinter.CTkButton(self, width=275, text="Change Speed", command=self.ChangeSpeed)
+
+                        self.label_speed.place(x=375,y=0)
+                        self.entry_speed.place(x=375,y=25)
+                        self.button_optimize.place(x=375,y=185)
+
+                def ChangeSpeed(self):
+                    print(self.loadedgifpath)
+                    if self.loadedgifpath == "":
+                        self.errormsgedt("Please load a GIF first")
+                    elif not self.entry_speed.get().isnumeric():
+                        self.errormsgedt("Please input an integer number\ninto the speed field")
+                    else:
+                        if system == "Linux":
+                            self.outputgifpath = os.path.join(readconfigpath("temporary_video_directory"), "temp_gif_spd.gif")
+                            self.speed = self.entry_speed.get()
+                            if self.speed == "1":
+                                self.speed = "2"
+                            self.speed = "--delay=" + self.speed
+                            subprocess.run(["gifsicle", '--colors=256', self.speed, self.loadedgifpath, "-o", self.outputgifpath],stdout=subprocess.DEVNULL,
+                            stderr=subprocess.DEVNULL)
+                            self.stopgifvidplayback()
+                            self.play_gifedit(self.outputgifpath)
+                            self.label_loadedgifname.configure(text="Output GIF:")
+                            self.SaveButtons()
+
+                def AddTextButton(self):
+                    if self.GifsicleCheck():
+                        self.cleanbuttons()
+                        self.lastoperation = "AddText"
+                        self.label_text = customtkinter.CTkLabel(self, text="Enter text to add", fg_color="transparent")
+                        self.label_font_size = customtkinter.CTkLabel(self, text="Enter font size", fg_color="transparent")
+                        self.entry_text = customtkinter.CTkEntry(self, placeholder_text="Enter text", width=275, height=50)
+                        self.entry_font_size = customtkinter.CTkEntry(self, placeholder_text="Enter font size", width=100, height=50)
+                        self.button_add_text = customtkinter.CTkButton(self, width=275, text="Add Text", command=self.AddingText)
+                        self.label_text.place(x=375,y=0)
+                        self.label_font_size.place(x=375,y=75)
+                        self.entry_text.place(x=375,y=25)
+                        self.entry_font_size.place(x=375,y=100)
+                        self.button_add_text.place(x=375,y=185)
+
+                    
+                def AddingText(self):
+                    print(self.loadedgifpath)
+                    if self.loadedgifpath == "":
+                        self.errormsgedt("Please load a GIF first")
+                    elif not self.entry_font_size.get().isnumeric():
+                        self.errormsgedt("Please input an integer number\ninto the speed field")
+                    else:
+                        self.outputgifpath = os.path.join(readconfigpath("temporary_video_directory"), "temp_gif_txt.gif")
+                        GifText(self.loadedgifpath,self.entry_text.get(),self.entry_font_size.get(),self.outputgifpath)
+                        
+                        print("1")
+                        self.stopgifvidplayback()
+                        print("2")
+                        
+                        print("3")
+                        self.label_loadedgifname.configure(text="Output GIF:")
+                        
+                        print("4")
+                        print(self.outputgifpath)
+                        print("5")
+                        # self.play_gifedit(self.outputgifpath)
+                        print("6")
+
+                        self.SaveButtons()
+                        
+
+
+
+                def GifsicleCheck(self):
+                    if GifsicleLinuxCheck() != 0:
+                        self.errormsgedt("This function requires Gifsicle to work.")
+                        return False
+                    else:
+                        return True
+
+                def select_gif(self):
+                    self.stopgifvidplayback()
+                    self.loadedgifpath = selectfilegif(parent=self)
+                    self.play_gifedit(self.loadedgifpath)
+                    self.label_loadedgifname.configure(text=f"Loaded GIF: {os.path.basename(self.loadedgifpath)}")
+
+                def play_gifedit(self, gif_path):
+                    gif = Image.open(gif_path)
+                    self.gif_frames = []
+                    self.current_frame = 0
+                    self.gif_running = True
+                    self.gif_duration = gif.info.get("duration", 100)
+
+                    for frame in ImageSequence.Iterator(gif):
+                        frame = frame.convert("RGBA")
+                        frame.thumbnail((200, 200))
+                        background = Image.new("RGBA", (200, 200), (0, 0, 0, 0))
+                        x = (200 - frame.width) // 2
+                        y = (200 - frame.height) // 2
+                        background.paste(frame, (x, y), frame)
+                        self.gif_frames.append(ImageTk.PhotoImage(background))
+
+                    # Cancel previous animation if running
+                    if self.gifedit_animation_id is not None:
+                        self.after_cancel(self.gifedit_animation_id)
+                        self.gifedit_animation_id = None
+
+                    def animate():
+                        if self.gif_running and self.gif_frames:
+                            self.label_loadedgif.configure(image=self.gif_frames[self.current_frame])
+                            self.current_frame = (self.current_frame + 1) % len(self.gif_frames)
+                            self.gifedit_animation_id = self.after(self.gif_duration, animate)
+                    animate()
+
+
+
+                def stopgifvidplayback(self):
+                    self.gif_running = False
+                    self.label_loadedgif.configure(image="")
+                    # Cancel any running animations
+                    if self.gifedit_animation_id is not None:
+                        self.after_cancel(self.gifedit_animation_id)
+                        self.gifedit_animation_id = None
+                        self.label_loadedgifname.configure(text="")
+
+                def SaveButtons(self):
+                    self.savebuttons = True
+                    self.entry_name = customtkinter.CTkEntry(self, placeholder_text="Enter name", width=100, height=50)
+                    self.button_save = customtkinter.CTkButton(self, width=100, height=50, text="Save", command=self.SavingGif)
+                    self.button_overwrite = customtkinter.CTkButton(self, width=100, height=50, text="Overwrite", command=self.OverwriteSavingGif)
+                    self.entry_name.place(x=383,y=265)
+                    self.button_save.place(x=383,y=325)
+                    self.button_overwrite.place(x=516,y=290)
+
+                def button_callback(self):
+                    print("button clicked")
+                    print(f"ttt{self.loadedgifpath}ttt")
+
+                def FindFromName(self):
+                    self.stopgifvidplayback()
+                    self.gifeditfound = False
+                    self.rootfound = False
+                    self.founderrors = []
+                    if os.path.exists(os.path.join(readconfigpath("gif_edit_directory"),(self.entry_name.get()+".gif"))):
+                        self.gifeditfound = True
+                    else:
+                        self.founderrors.append("Gif Edit directory")
+                    if os.path.exists(os.path.join(readconfigpath("root_path"),(self.entry_name.get()+".gif"))):
+                        self.rootfound = True
+                    else:
+                        self.founderrors.append("Root directory")
+
+                    if len(self.founderrors) == 2:
+                        self.errormsgedt("Unable to find the desired GIF\nin both Root and Gif Edit directories")
+                    else:
+                        print(self.rootfound)
+                        print(self.gifeditfound)
+                        if self.gifeditfound and self.rootfound:
+                            self.ConflictMenu()
+                        
+                        elif self.rootfound and self.gifeditfound == False:
+                            self.loadedgifpath = os.path.join(readconfigpath("root_path"),(self.entry_name.get()+".gif"))
+                            self.play_gifedit(self.loadedgifpath)
+                            self.label_loadedgifname.configure(text=f"Loaded GIF: {os.path.basename(self.loadedgifpath)}")
+                        
+                def cleanbuttons(self):
+                    if self.savebuttons:
+                        self.entry_name.destroy()
+                        self.button_save.destroy()
+                        self.button_overwrite.destroy()
+                        self.savebuttons = False
+                    if self.lastoperation == "Optimize":
+                        self.label_optimizelossy.destroy()
+                        self.entry_optimizelossy.destroy()
+                        self.button_optimize.destroy()
+                        self.lastoperation = ""
+                    if self.lastoperation == "Speed":
+                        self.label_speed.destroy()
+                        self.entry_speed.destroy()
+                        self.button_optimize.destroy()
+                        self.lastoperation = ""
+                    
+
+                    
+
+
+                def SavingGif(self):
+                    if os.path.exists(os.path.join(readconfigpath("root_path"),(self.entry_name.get()+".gif"))):
+                        self.errormsgedt("GIF already exists in the Root directory")
+                    else:
+                        os.rename(self.outputgifpath, os.path.join(readconfigpath("root_path"), (self.entry_name.get()+".gif")))
+                        self.loadedgifpath = os.path.join(readconfigpath("root_path"), (self.entry_name.get()+".gif"))
+                        self.cleanbuttons()
+                        self.stopgifvidplayback()
+                        self.play_gifedit(self.loadedgifpath)
+                        self.label_loadedgifname.configure(text=f"Loaded GIF: {os.path.basename(self.loadedgifpath)}")
+
+                def OverwriteSavingGif(self):
+                    os.rename(self.outputgifpath, self.loadedgifpath)
+                    self.cleanbuttons()
+                    self.stopgifvidplayback()
+                    self.play_gifedit(self.loadedgifpath)
+                    self.label_loadedgifname.configure(text=f"Loaded GIF: {os.path.basename(self.loadedgifpath)}")
+
+                def ConflictMenu(self):
+                    class ConflictMenuDisplay(customtkinter.CTkToplevel):
+                        def __init__(self, parent):
+                            super().__init__()
+                            self.parent = parent  # Reference to GifEdit instance
+                            self.geometry("300x200")
+                            self.title("Error")
+                            self.error_label = customtkinter.CTkLabel(self, text="Found GIFs of the same name\nin both Root and Gif Edit directory\nSelect which one to use", fg_color="transparent")
+                            self.error_label.pack (padx=10,pady=25)
+
+                            self.error_exit_button = customtkinter.CTkButton(self,width = 113,height = 50, text = "Root",command=self.conflictroot)
+                            self.error_exit_button.place(x=25,y=125)                        
+                            self.error_exit_button2 = customtkinter.CTkButton(self,width = 113,height = 50, text = "Gif Edit",command=self.conflictgifedit)
+                            self.error_exit_button2.place(x=162,y=125) 
+
+                        def conflictroot(self):
+                            gif_path = os.path.join(readconfigpath("root_path"), (self.parent.entry_name.get() + ".gif"))
+                            self.parent.loadedgifpath = gif_path
+                            self.parent.play_gifedit(gif_path)
+                            # Example: update a label in GifEdit
+                            self.parent.label_loadedgifname.configure(text=f"Loaded GIF: {os.path.basename(gif_path)}")
+                            self.destroy()
+
+                        def conflictgifedit(self):
+                            gif_path = os.path.join(readconfigpath("gif_edit_directory"), (self.parent.entry_name.get() + ".gif"))
+                            self.parent.loadedgifpath = gif_path
+                            self.parent.play_gifedit(gif_path)
+                            # Example: update a label in GifEdit
+                            self.parent.label_loadedgifname.configure(text=f"Loaded GIF: {os.path.basename(gif_path)}")
+                            self.destroy()
+
+                    # Pass self (GifEdit instance) to the conflict menu
+                    conflictmenu = ConflictMenuDisplay(self) 
+
+
+
+                def errormsgedt(self,errortext):
+                    class ErrorMessageCrt(customtkinter.CTkToplevel):
+                        def __init__(self):
+                            super().__init__()
+                            self.geometry("300x200")
+                            self.title("Error")
+                            
+                            self.error_label = customtkinter.CTkLabel(self, text=errortext, fg_color="transparent")
+                            self.error_label.pack (padx=10,pady=25)
+
+                            self.error_exit_button = customtkinter.CTkButton(self,width = 100,height = 50, text = "Okay",command=self.exiterror)
+                            self.error_exit_button.place(x=100,y=125)                        
+                        def exiterror(self):
+                            print("exiting")
+                            self.destroy()
+                    errormessagecrt = ErrorMessageCrt()  
+            gifeditor = GifEdit()
+        else:
+            self.MainMenuerror("Please enter the settings and correctly configure:\nRooth path and the Temporary path")
+
+
+mainmenu = MainMenu()
+mainmenu.mainloop()

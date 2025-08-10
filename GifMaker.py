@@ -223,6 +223,112 @@ def extract_frames_then_gif(video_file,vid_speed,temp_ms):
 
     make_temp_gif(readconfigpath("temporary_video_directory"))
 
+def dodawanie_tekstu(wielkosc_czcionki, image1, text):
+    """
+    Function to add text to an image with wrapping.
+    Accepts only a PIL Image object as image1.
+    """
+    ogwidth, ogheight = image1.size
+    tempheight = ogwidth * 2
+    imagetemp = Image.new(mode="RGB", size=[ogwidth, tempheight], color=(255, 0, 255))
+    szerokosc = ogwidth - ((ogwidth * 0.03) * 2)
+
+    def wrap_text(text, font, max_width, draw):
+        """
+        Wraps text to fit within the max_width.
+        """
+        words = text.split()
+        lines = [] # Holds each line in the text box
+        current_line = [] # Holds the current line under evaluation.
+
+        for word in words:
+            # Check the width of the current line with the new word added
+            test_line = ' '.join(current_line + [word])
+            width = draw.textlength(test_line, font=font)
+            if width <= max_width:
+                current_line.append(word)
+            else:
+                # If the line is too wide, finalize the current line and start a new one
+                lines.append(' '.join(current_line))
+                current_line = [word]
+
+        # Add the last line
+        if current_line:
+            lines.append(' '.join(current_line))
+
+        return lines
+
+    draw = ImageDraw.Draw(imagetemp) 
+
+    # Set text, font, and max width
+    try:
+        font = ImageFont.truetype("arial.ttf", wielkosc_czcionki)
+    except OSError:
+        font = ImageFont.load_default()
+    max_width = szerokosc
+
+    wrapped_lines = wrap_text(text, font, max_width, draw)
+
+    description = "\n".join(wrapped_lines)
+
+    draw_output = ImageDraw.Draw(imagetemp)
+
+    # Calculate bounding box for multiline text
+    bbox = draw_output.multiline_textbbox((0, 0), description, font=font, spacing=6)
+    text_height = bbox[3] - bbox[1]
+
+    imageoutput = Image.new(mode = "RGB", size = [ogwidth, text_height + wielkosc_czcionki], color = (255, 255, 255))
+
+    # Center coordinates
+    center_x = imageoutput.width // 2
+    center_y = imageoutput.height // 2
+
+    # Draw the text centered vertically and horizontally
+    ImageDraw.Draw(imageoutput).multiline_text(
+        (center_x, center_y),
+        description,
+        font=font,
+        anchor="mm",  # center-middle anchor
+        align="center",
+        fill="black",
+        spacing=6
+    )
+
+    newwidth, newheight = imageoutput.size
+
+    def get_concat_v(imageoutput, image1):
+        dst = Image.new('RGB', (newwidth, newheight + ogheight))
+        dst.paste(imageoutput, (0, 0))
+        dst.paste(image1, (0, newheight))
+        return dst
+
+    # Return the concatenated image
+    return get_concat_v(imageoutput, image1)
+
+def GifText(gif_path, text, font_size, out_path):
+    frames = [f.copy() for f in ImageSequence.Iterator(Image.open(gif_path))]
+    new_gif = []
+    font_size = int(font_size)
+    # Ensure all frames are the same size and mode
+    size = frames[0].size
+    for frame in frames:
+        frame = frame.convert("RGBA").resize(size)
+        result_image = dodawanie_tekstu(font_size, frame, text)
+        # Convert to "P" mode for GIF
+        result_image = result_image.convert("P", palette=Image.ADAPTIVE)
+        new_gif.append(result_image)
+    new_gif_name_path = out_path
+    new_gif[0].save(
+        new_gif_name_path,
+        save_all=True,
+        append_images=new_gif[1:],
+        loop=0,
+        optimize=True,
+        duration=Image.open(gif_path).info.get("duration", 100),
+        disposal=2
+    )
+    print("DONE")
+
 #GUI code
 
 class MainMenu(customtkinter.CTk):
@@ -241,7 +347,7 @@ class MainMenu(customtkinter.CTk):
         self.button_exit.place(x=25,y=275)
         self.button_settings.place(x=200,y=300)
 
-        self.buttonplaceholderforart = customtkinter.CTkButton(self,width = 250, height = 250, text="", command=self.button_callback)
+        self.buttonplaceholderforart = customtkinter.CTkButton(self,width = 250, height = 250, text="PLACEHOLDER\nfor a logo/art", command=self.button_callback)
         self.buttonplaceholderforart.place(x=325,y=75)
 
     def button_callback(self):
@@ -1328,9 +1434,9 @@ class MainMenu(customtkinter.CTk):
                     self.parent = parent  # Reference to GifEdit
                     self.button_optimize = customtkinter.CTkButton(self,width=298,text="Optimize",command=self.parent.OptimizeButton)
                     self.button_optimize.grid(row=0, column=0, padx=0)
-                    self.button_accell = customtkinter.CTkButton(self, width = 298,text = "Change speed", command = self.parent.button_callback)
+                    self.button_accell = customtkinter.CTkButton(self, width = 298,text = "Change speed", command = self.parent.SpeedButton)
                     self.button_accell.grid(row=1, column=0, pady=6)
-                    self.button_text = customtkinter.CTkButton(self, width = 298,text = "Add text", command = self.parent.button_callback)
+                    self.button_text = customtkinter.CTkButton(self, width = 298,text = "Add text", command = self.parent.AddTextButton)
                     self.button_text.grid(row=2, column=0, padx=0)
                     # self.button4 = customtkinter.CTkButton(self, width = 248)
                     # self.button4.grid(row=3, column=0, pady=6)
@@ -1346,6 +1452,8 @@ class MainMenu(customtkinter.CTk):
                     self.geometry("900x400")
                     self.title("GIF Editor")
                     self.resizable(False,False)
+                    self.lastoperation = ""
+                    self.savebuttons = False
                     
                     self.loadedgifpath = ""
                     self.outputgifpath = ""
@@ -1353,10 +1461,8 @@ class MainMenu(customtkinter.CTk):
                     self.rootfound = False
                     self.founderrors = []
 
-                    self.label_loadedgifname = customtkinter.CTkLabel(self,text="Loaded GIF:",fg_color="transparent")
-                    self.label_outputgifname = customtkinter.CTkLabel(self,text="Output:",fg_color="transparent")
-                    self.label_loadedgif = customtkinter.CTkLabel(self,text="",height=160,width=160,fg_color="gray20")
-                    self.label_outputgif = customtkinter.CTkLabel(self,text="",height=160,width=160,fg_color="gray20")
+                    self.label_loadedgifname = customtkinter.CTkLabel(self,text="",fg_color="transparent")
+                    self.label_loadedgif = customtkinter.CTkLabel(self,text="",height=200,width=200,fg_color="gray20")
 
                     self.entry_name = customtkinter.CTkEntry(self,placeholder_text="Enter name or select it",width = 175, height = 50)
 
@@ -1368,10 +1474,10 @@ class MainMenu(customtkinter.CTk):
                     
                     self.entry_name.place(x=25,y=25)
 
-                    self.label_loadedgifname.place(x=715,y=0)
-                    self.label_outputgifname.place(x=715,y=190)
-                    self.label_loadedgif.place(x=715,y=25)
-                    self.label_outputgif.place(x=715,y=215)
+                    self.label_loadedgifname.place(x=675,y=75)
+
+                    self.label_loadedgif.place(x=675,y=100)
+
                     
                     
                     self.button_filedialog.place(x=225,y=25)
@@ -1387,11 +1493,13 @@ class MainMenu(customtkinter.CTk):
 
                 def OptimizeButton(self):
                     if self.GifsicleCheck():
+                        self.cleanbuttons()
+                        self.lastoperation = "Optimize"
                         self.label_optimizelossy = customtkinter.CTkLabel(self, text="Lossy optimization", fg_color="transparent")
                         
-                        self.entry_optimizelossy = customtkinter.CTkEntry(self, placeholder_text="Enter quality (0-100)", width=315, height=50)
+                        self.entry_optimizelossy = customtkinter.CTkEntry(self, placeholder_text="Enter quality (0-100)", width=275, height=50)
                         
-                        self.button_optimize = customtkinter.CTkButton(self, width=315, text="Optimize", command=self.Optimalization)
+                        self.button_optimize = customtkinter.CTkButton(self, width=275, text="Optimize", command=self.Optimalization)
 
                         self.label_optimizelossy.place(x=375,y=0)
                         self.entry_optimizelossy.place(x=375,y=25)
@@ -1402,7 +1510,7 @@ class MainMenu(customtkinter.CTk):
                         self.errormsgedt("Please load a GIF first")
                     elif not self.entry_optimizelossy.get().isnumeric():
                         self.errormsgedt("Please input an integer number\ninto the quality field")
-                    elif not 0 <int(self.entry_optimizelossy.get()) < 100:
+                    elif not 0 <int(self.entry_optimizelossy.get()) < 101:
                         self.errormsgedt("Please input a number\nbetween 0 and 100")
                     else:
                         if system == "Linux":
@@ -1411,12 +1519,88 @@ class MainMenu(customtkinter.CTk):
                             subprocess.run(["gifsicle", "-O2", self.optpercentage, '--colors=256', self.loadedgifpath, "-o", self.outputgifpath],stdout=subprocess.DEVNULL,
                             stderr=subprocess.DEVNULL)
                             self.stopgifvidplayback()
-                            self.play_gifedit(self.loadedgifpath)
-                            self.play_gifeditout(self.outputgifpath)
-                            self.label_outputgifname.configure(text="Output:")
+                            self.play_gifedit(self.outputgifpath)
+                            self.label_loadedgifname.configure(text="Output GIF:")
                             self.SaveButtons()
 
+                def SpeedButton(self):
+                    if self.GifsicleCheck():
+                        self.cleanbuttons()
+                        self.lastoperation = "Speed"
+                        self.label_speed = customtkinter.CTkLabel(self, text="Enter the delay between frames", fg_color="transparent")
+
+                        self.entry_speed = customtkinter.CTkEntry(self, placeholder_text="Enter the frame delay ", width=275, height=50)
+
+                        self.button_optimize = customtkinter.CTkButton(self, width=275, text="Change Speed", command=self.ChangeSpeed)
+
+                        self.label_speed.place(x=375,y=0)
+                        self.entry_speed.place(x=375,y=25)
+                        self.button_optimize.place(x=375,y=185)
+
+                def ChangeSpeed(self):
+                    print(self.loadedgifpath)
+                    if self.loadedgifpath == "":
+                        self.errormsgedt("Please load a GIF first")
+                    elif not self.entry_speed.get().isnumeric():
+                        self.errormsgedt("Please input an integer number\ninto the speed field")
+                    else:
+                        if system == "Linux":
+                            self.outputgifpath = os.path.join(readconfigpath("temporary_video_directory"), "temp_gif_spd.gif")
+                            self.speed = self.entry_speed.get()
+                            if self.speed == "1":
+                                self.speed = "2"
+                            self.speed = "--delay=" + self.speed
+                            subprocess.run(["gifsicle", '--colors=256', self.speed, self.loadedgifpath, "-o", self.outputgifpath],stdout=subprocess.DEVNULL,
+                            stderr=subprocess.DEVNULL)
+                            self.stopgifvidplayback()
+                            self.play_gifedit(self.outputgifpath)
+                            self.label_loadedgifname.configure(text="Output GIF:")
+                            self.SaveButtons()
+
+                def AddTextButton(self):
+                    if self.GifsicleCheck():
+                        self.cleanbuttons()
+                        self.lastoperation = "AddText"
+                        self.label_text = customtkinter.CTkLabel(self, text="Enter text to add", fg_color="transparent")
+                        self.label_font_size = customtkinter.CTkLabel(self, text="Enter font size", fg_color="transparent")
+                        self.entry_text = customtkinter.CTkEntry(self, placeholder_text="Enter text", width=275, height=50)
+                        self.entry_font_size = customtkinter.CTkEntry(self, placeholder_text="Enter font size", width=100, height=50)
+                        self.button_add_text = customtkinter.CTkButton(self, width=275, text="Add Text", command=self.AddingText)
+                        self.label_text.place(x=375,y=0)
+                        self.label_font_size.place(x=375,y=75)
+                        self.entry_text.place(x=375,y=25)
+                        self.entry_font_size.place(x=375,y=100)
+                        self.button_add_text.place(x=375,y=185)
+
                     
+                def AddingText(self):
+                    print(self.loadedgifpath)
+                    if self.loadedgifpath == "":
+                        self.errormsgedt("Please load a GIF first")
+                    elif not self.entry_font_size.get().isnumeric():
+                        self.errormsgedt("Please input an integer number\ninto the speed field")
+                    else:
+                        self.outputgifpath = os.path.join(readconfigpath("temporary_video_directory"), "temp_gif_txt.gif")
+                        GifText(self.loadedgifpath,self.entry_text.get(),self.entry_font_size.get(),self.outputgifpath)
+                        
+                        print("1")
+                        self.stopgifvidplayback()
+                        print("2")
+                        
+                        print("3")
+                        self.label_loadedgifname.configure(text="Output GIF:")
+                        
+                        print("4")
+                        print(self.outputgifpath)
+                        print("5")
+                        self.play_gifedit(self.outputgifpath)
+                        print("6")
+
+                        self.SaveButtons()
+                        
+
+
+
                 def GifsicleCheck(self):
                     if GifsicleLinuxCheck() != 0:
                         self.errormsgedt("This function requires Gifsicle to work.")
@@ -1428,7 +1612,8 @@ class MainMenu(customtkinter.CTk):
                     self.stopgifvidplayback()
                     self.loadedgifpath = selectfilegif(parent=self)
                     self.play_gifedit(self.loadedgifpath)
-                
+                    self.label_loadedgifname.configure(text=f"Loaded GIF: {os.path.basename(self.loadedgifpath)}")
+
                 def play_gifedit(self, gif_path):
                     gif = Image.open(gif_path)
                     self.gif_frames = []
@@ -1438,10 +1623,10 @@ class MainMenu(customtkinter.CTk):
 
                     for frame in ImageSequence.Iterator(gif):
                         frame = frame.convert("RGBA")
-                        frame.thumbnail((160, 160))
-                        background = Image.new("RGBA", (160, 160), (0, 0, 0, 0))
-                        x = (160 - frame.width) // 2
-                        y = (160 - frame.height) // 2
+                        frame.thumbnail((200, 200))
+                        background = Image.new("RGBA", (200, 200), (0, 0, 0, 0))
+                        x = (200 - frame.width) // 2
+                        y = (200 - frame.height) // 2
                         background.paste(frame, (x, y), frame)
                         self.gif_frames.append(ImageTk.PhotoImage(background))
 
@@ -1458,55 +1643,28 @@ class MainMenu(customtkinter.CTk):
                     animate()
 
 
-                def play_gifeditout(self, gif_path):
-                    gif = Image.open(gif_path)
-                    self.gif_frames = []
-                    self.current_frame = 0
-                    self.gif_running = True
-                    self.gif_duration = gif.info.get("duration", 100)
-
-                    for frame in ImageSequence.Iterator(gif):
-                        frame = frame.convert("RGBA")
-                        frame.thumbnail((160, 160))
-                        background = Image.new("RGBA", (160, 160), (0, 0, 0, 0))
-                        x = (160 - frame.width) // 2
-                        y = (160 - frame.height) // 2
-                        background.paste(frame, (x, y), frame)
-                        self.gif_frames.append(ImageTk.PhotoImage(background))
-
-                    # Cancel previous animation if running
-                    if self.gifeditout_animation_id is not None:
-                        self.after_cancel(self.gifeditout_animation_id)
-                        self.gifeditout_animation_id = None
-
-                    def animate():
-                        if self.gif_running and self.gif_frames:
-                            self.label_outputgif.configure(image=self.gif_frames[self.current_frame])
-                            self.current_frame = (self.current_frame + 1) % len(self.gif_frames)
-                            self.gifeditout_animation_id = self.after(self.gif_duration, animate)
-                    animate()
 
                 def stopgifvidplayback(self):
                     self.gif_running = False
                     self.label_loadedgif.configure(image="")
-                    self.label_outputgif.configure(image="")
                     # Cancel any running animations
                     if self.gifedit_animation_id is not None:
                         self.after_cancel(self.gifedit_animation_id)
                         self.gifedit_animation_id = None
-                    if self.gifeditout_animation_id is not None:
-                        self.after_cancel(self.gifeditout_animation_id)
-                        self.gifeditout_animation_id = None
+                        self.label_loadedgifname.configure(text="")
 
                 def SaveButtons(self):
-                    self.entry_name = customtkinter.CTkEntry(self, placeholder_text="Enter name", width=105, height=50)
-                    self.button_save = customtkinter.CTkButton(self, width=105, height=50, text="Save", command=self.button_callback)
-
-                    self.entry_name.place(x=480,y=265)
-                    self.button_save.place(x=480,y=325)
+                    self.savebuttons = True
+                    self.entry_name = customtkinter.CTkEntry(self, placeholder_text="Enter name", width=100, height=50)
+                    self.button_save = customtkinter.CTkButton(self, width=100, height=50, text="Save", command=self.SavingGif)
+                    self.button_overwrite = customtkinter.CTkButton(self, width=100, height=50, text="Overwrite", command=self.OverwriteSavingGif)
+                    self.entry_name.place(x=383,y=265)
+                    self.button_save.place(x=383,y=325)
+                    self.button_overwrite.place(x=516,y=290)
 
                 def button_callback(self):
                     print("button clicked")
+                    print(f"ttt{self.loadedgifpath}ttt")
 
                 def FindFromName(self):
                     self.stopgifvidplayback()
@@ -1533,17 +1691,46 @@ class MainMenu(customtkinter.CTk):
                         elif self.rootfound and self.gifeditfound == False:
                             self.loadedgifpath = os.path.join(readconfigpath("root_path"),(self.entry_name.get()+".gif"))
                             self.play_gifedit(self.loadedgifpath)
-                        elif self.gifeditfound and self.rootfound == False:
-                            self.loadedgifpath = os.path.join(readconfigpath("gif_edit_directory"),(self.entry_name.get()+".gif"))
-                            self.play_gifedit(self.loadedgifpath)
+                            self.label_loadedgifname.configure(text=f"Loaded GIF: {os.path.basename(self.loadedgifpath)}")
                         
-                
-
+                def cleanbuttons(self):
+                    if self.savebuttons:
+                        self.entry_name.destroy()
+                        self.button_save.destroy()
+                        self.button_overwrite.destroy()
+                        self.savebuttons = False
+                    if self.lastoperation == "Optimize":
+                        self.label_optimizelossy.destroy()
+                        self.entry_optimizelossy.destroy()
+                        self.button_optimize.destroy()
+                        self.lastoperation = ""
+                    if self.lastoperation == "Speed":
+                        self.label_speed.destroy()
+                        self.entry_speed.destroy()
+                        self.button_optimize.destroy()
+                        self.lastoperation = ""
+                    
 
                     
 
 
+                def SavingGif(self):
+                    if os.path.exists(os.path.join(readconfigpath("root_path"),(self.entry_name.get()+".gif"))):
+                        self.errormsgedt("GIF already exists in the Root directory")
+                    else:
+                        os.rename(self.outputgifpath, os.path.join(readconfigpath("root_path"), (self.entry_name.get()+".gif")))
+                        self.loadedgifpath = os.path.join(readconfigpath("root_path"), (self.entry_name.get()+".gif"))
+                        self.cleanbuttons()
+                        self.stopgifvidplayback()
+                        self.play_gifedit(self.loadedgifpath)
+                        self.label_loadedgifname.configure(text=f"Loaded GIF: {os.path.basename(self.loadedgifpath)}")
 
+                def OverwriteSavingGif(self):
+                    os.rename(self.outputgifpath, self.loadedgifpath)
+                    self.cleanbuttons()
+                    self.stopgifvidplayback()
+                    self.play_gifedit(self.loadedgifpath)
+                    self.label_loadedgifname.configure(text=f"Loaded GIF: {os.path.basename(self.loadedgifpath)}")
 
                 def ConflictMenu(self):
                     class ConflictMenuDisplay(customtkinter.CTkToplevel):
