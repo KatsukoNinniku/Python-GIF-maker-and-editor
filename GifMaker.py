@@ -1709,6 +1709,13 @@ class MainMenu(customtkinter.CTk):
                         self.entry_speed.destroy()
                         self.button_optimize.destroy()
                         self.lastoperation = ""
+                    if self.lastoperation == "AddText":
+                        self.label_text.destroy()
+                        self.label_font_size.destroy()
+                        self.entry_text.destroy()
+                        self.entry_font_size.destroy()
+                        self.button_add_text.destroy()
+                        self.lastoperation = ""
                     
 
                     
